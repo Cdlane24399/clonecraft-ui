@@ -12,9 +12,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["'Geist'", "'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ["'Geist'", "'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["'JetBrains Mono'", "'Geist Mono'", "ui-monospace", "monospace"],
+        sans: ["'Epilogue'", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["'Urbanist'", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["'Urbanist'", "ui-serif", "Georgia", "serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",

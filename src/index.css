@@ -2,129 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CloneCraft AI — Premium SaaS design system (dark by default) */
+/* CloneCraft AI — Editorial "Paper & Ink" design system */
 
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 240 16% 4%;
-    --foreground: 220 20% 96%;
+    /* Surfaces — Paper */
+    --background: 42 24% 95%;        /* #f5f3ee */
+    --foreground: 0 0% 5%;           /* #0d0d0d */
 
-    --card: 240 14% 7%;
-    --card-foreground: 220 20% 96%;
+    --card: 42 24% 95%;
+    --card-foreground: 0 0% 5%;
 
-    --popover: 240 14% 7%;
-    --popover-foreground: 220 20% 96%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
 
-    /* Brand: electric violet -> cyan */
-    --primary: 258 92% 66%;
-    --primary-foreground: 240 16% 4%;
-    --primary-glow: 280 95% 70%;
+    /* Ink — primary action */
+    --primary: 0 0% 5%;              /* #0d0d0d */
+    --primary-foreground: 42 24% 95%;
+    --primary-glow: 0 0% 18%;
 
-    --accent: 188 95% 55%;
-    --accent-foreground: 240 16% 4%;
+    /* Restrained accent — same ink */
+    --accent: 0 0% 5%;
+    --accent-foreground: 42 24% 95%;
 
-    --secondary: 240 10% 12%;
-    --secondary-foreground: 220 20% 92%;
+    /* Soft paper tones */
+    --secondary: 36 18% 90%;         /* #ecebe4 */
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 240 10% 11%;
-    --muted-foreground: 220 12% 60%;
+    --muted: 40 16% 91%;             /* #efece5 */
+    --muted-foreground: 0 0% 35%;    /* warm gray */
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 220 20% 98%;
+    --destructive: 8 62% 38%;        /* burnt sienna */
+    --destructive-foreground: 42 24% 95%;
 
-    --success: 152 70% 48%;
-    --warning: 38 95% 58%;
-    --info: 210 95% 60%;
+    --success: 152 30% 28%;          /* deep moss */
+    --warning: 32 55% 40%;           /* tobacco */
+    --info: 0 0% 25%;
 
-    --border: 240 10% 15%;
-    --input: 240 10% 14%;
-    --ring: 258 92% 66%;
+    --border: 38 18% 88%;            /* #e8e4dd */
+    --input: 38 18% 88%;
+    --ring: 0 0% 5%;
 
-    --radius: 0.85rem;
+    --radius: 0rem;                  /* sharp editorial corners */
 
     /* Sidebar */
-    --sidebar-background: 240 16% 5%;
-    --sidebar-foreground: 220 14% 78%;
-    --sidebar-primary: 258 92% 66%;
-    --sidebar-primary-foreground: 240 16% 4%;
-    --sidebar-accent: 240 10% 11%;
-    --sidebar-accent-foreground: 220 20% 96%;
-    --sidebar-border: 240 10% 12%;
-    --sidebar-ring: 258 92% 66%;
+    --sidebar-background: 40 22% 93%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 0 0% 5%;
+    --sidebar-primary-foreground: 42 24% 95%;
+    --sidebar-accent: 38 18% 88%;
+    --sidebar-accent-foreground: 0 0% 5%;
+    --sidebar-border: 38 18% 88%;
+    --sidebar-ring: 0 0% 5%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(258 92% 66%), hsl(280 95% 70%) 50%, hsl(188 95% 55%));
-    --gradient-hero: radial-gradient(ellipse 80% 60% at 50% -10%, hsl(258 92% 66% / 0.35), transparent 60%),
-                     radial-gradient(ellipse 60% 50% at 80% 30%, hsl(188 95% 55% / 0.18), transparent 60%),
-                     radial-gradient(ellipse 60% 50% at 10% 40%, hsl(280 95% 70% / 0.18), transparent 60%);
-    --gradient-card: linear-gradient(180deg, hsl(240 12% 9% / 0.7), hsl(240 14% 6% / 0.5));
-    --gradient-border: linear-gradient(135deg, hsl(258 92% 66% / 0.6), hsl(188 95% 55% / 0.2));
+    /* "Gradients" — kept for class compatibility but rendered as flat ink */
+    --gradient-primary: linear-gradient(180deg, hsl(0 0% 5%), hsl(0 0% 12%));
+    --gradient-hero: none;
+    --gradient-card: none;
+    --gradient-border: linear-gradient(135deg, hsl(0 0% 5% / 0.2), hsl(0 0% 5% / 0.05));
 
-    /* Shadows / glows */
-    --shadow-glow: 0 20px 80px -20px hsl(258 92% 66% / 0.5);
-    --shadow-soft: 0 10px 40px -15px hsl(240 60% 2% / 0.8);
-    --shadow-card: 0 1px 0 0 hsl(240 10% 100% / 0.04) inset, 0 8px 30px -10px hsl(240 60% 2% / 0.6);
+    /* Shadows — paper-flat */
+    --shadow-glow: 0 1px 0 0 hsl(0 0% 5% / 0.04);
+    --shadow-soft: 0 1px 2px 0 hsl(0 0% 5% / 0.06);
+    --shadow-card: 0 1px 0 0 hsl(0 0% 5% / 0.04);
 
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  html { color-scheme: dark; }
+  html { color-scheme: light; }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
-    background-image:
-      radial-gradient(ellipse 1200px 600px at 50% -200px, hsl(258 92% 66% / 0.12), transparent 60%),
-      radial-gradient(ellipse 800px 400px at 90% 10%, hsl(188 95% 55% / 0.06), transparent 60%);
-    background-attachment: fixed;
+    font-family: 'Epilogue', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
   }
-  ::selection { background: hsl(var(--primary) / 0.35); }
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Urbanist', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+  ::selection { background: hsl(var(--primary) / 0.85); color: hsl(var(--background)); }
 }
 
 @layer components {
+  /* "Glass" → flat paper card with hairline border. Keeps class compatibility. */
   .glass {
-    @apply border border-border/60 bg-card/60 backdrop-blur-xl;
-    box-shadow: var(--shadow-card);
+    @apply border border-border bg-card;
   }
   .glass-strong {
-    @apply border border-border/80 bg-card/80 backdrop-blur-2xl;
-    box-shadow: var(--shadow-card);
+    @apply border border-foreground bg-card;
   }
+  /* "Gradient text" → solid ink, no rainbow. */
   .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: hsl(var(--foreground));
+    background: none;
+    -webkit-text-fill-color: currentColor;
   }
   .gradient-border {
     position: relative;
     background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
-  }
-  .gradient-border::before {
-    content: "";
-    position: absolute; inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: var(--gradient-border);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    pointer-events: none;
   }
   .grid-bg {
     background-image:
-      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 48px 48px;
+      linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 64px 64px;
     mask-image: radial-gradient(ellipse 60% 60% at 50% 30%, #000 30%, transparent 80%);
   }
-  .noise::after {
-    content: "";
-    position: absolute; inset: 0; pointer-events: none; opacity: 0.04;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  .noise::after { content: none; }
+
+  /* Editorial helpers */
+  .eyebrow {
+    @apply text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground;
+  }
+  .rule {
+    @apply border-t border-foreground;
   }
 }
