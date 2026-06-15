@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,33 @@ const toggles = [
   { id: "backend", label: "Mock backend", desc: "Stub APIs and seed data" },
 ];
 
+// Progressively reveals `count` items, one every `interval` ms.
+function useStaggeredReveal(count: number, interval = 220, startDelay = 150) {
+  const [visible, setVisible] = useState(0);
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < count; i++) {
+      timers.push(setTimeout(() => setVisible((v) => Math.max(v, i + 1)), startDelay + i * interval));
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [count, interval, startDelay]);
+  return visible;
+}
+
+function Reveal({ show, children, className }: { show: boolean; children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "transition-all duration-500 ease-out will-change-transform",
+        show ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-4 blur-[2px] pointer-events-none",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function NewClone() {
   const nav = useNavigate();
   const [url, setUrl] = useState("https://example.com");
@@ -41,6 +68,9 @@ export default function NewClone() {
   const [opts, setOpts] = useState<Record<string, boolean>>({
     responsive: true, animations: true, a11y: true, seo: false, backend: false,
   });
+
+  // 5 staged sections: URL, depth+stack, goal, additional passes, footer/CTA
+  const visible = useStaggeredReveal(5);
 
   const handleGenerate = () => {
     sessionStorage.setItem("cc:lastUrl", url);
@@ -62,22 +92,24 @@ export default function NewClone() {
         <div className="mt-8 gradient-border">
           <div className="rounded-[inherit] glass-strong p-6 md:p-8">
             {/* URL */}
-            <Label className="text-sm font-medium">Website URL</Label>
-            <div className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 focus-within:border-primary/60 transition-smooth">
-              <Globe className="w-4 h-4 text-muted-foreground" />
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-12 text-base font-mono"
-              />
-              <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground border border-border/80 rounded px-1.5 py-0.5">
-                <Info className="w-3 h-3" /> consent verified
-              </span>
-            </div>
+            <Reveal show={visible > 0}>
+              <Label className="text-sm font-medium">Website URL</Label>
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 focus-within:border-primary/60 transition-smooth">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 h-12 text-base font-mono"
+                />
+                <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground border border-border/80 rounded px-1.5 py-0.5">
+                  <Info className="w-3 h-3" /> consent verified
+                </span>
+              </div>
+            </Reveal>
 
             {/* Options grid */}
-            <div className="mt-8 grid md:grid-cols-2 gap-8">
+            <Reveal show={visible > 1} className="mt-8 grid md:grid-cols-2 gap-8">
               <OptionGroup title="Clone depth">
                 <div className="space-y-2">
                   {depths.map((d) => (
@@ -92,9 +124,9 @@ export default function NewClone() {
                   ))}
                 </div>
               </OptionGroup>
-            </div>
+            </Reveal>
 
-            <div className="mt-8">
+            <Reveal show={visible > 2} className="mt-8">
               <OptionGroup title="Goal">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
                   {goals.map((g) => (
@@ -102,9 +134,9 @@ export default function NewClone() {
                   ))}
                 </div>
               </OptionGroup>
-            </div>
+            </Reveal>
 
-            <div className="mt-8">
+            <Reveal show={visible > 3} className="mt-8">
               <OptionGroup title="Additional passes">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {toggles.map((t) => (
@@ -118,16 +150,16 @@ export default function NewClone() {
                   ))}
                 </div>
               </OptionGroup>
-            </div>
+            </Reveal>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <Reveal show={visible > 4} className="mt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground max-w-md">
                 Use for redesigns, migrations, internal prototypes, and owned websites. Submitting a URL confirms you have permission to analyze it.
               </p>
               <Button onClick={handleGenerate} size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow h-12 px-6">
                 <Wand2 className="w-4 h-4 mr-2" /> Generate clone
               </Button>
-            </div>
+            </Reveal>
           </div>
         </div>
       </div>
