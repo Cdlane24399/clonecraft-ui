@@ -1,8 +1,13 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "clonecraft-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "CloneCraft — turn any website into an editable React codebase.",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.9.8",
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"vite\" \"npm:server\"",
     "dev:web": "vite",

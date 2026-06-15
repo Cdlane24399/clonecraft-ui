@@ -65,8 +65,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mt-2 p-3 rounded-xl border border-border/60 bg-card/60">
             <div className="text-xs text-muted-foreground">Plan</div>
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium">Pro trial</div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">12d left</span>
+              <div className="text-sm font-medium">Free</div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">launch soon</span>
             </div>
           </div>
         </div>
@@ -80,13 +80,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <span>Workspace</span>
             <span className="opacity-50">/</span>
-            <span className="text-foreground font-medium">Highwire Studio</span>
+            <span className="text-foreground font-medium">{/* replaced by Clerk user in Phase 1 */}Default</span>
           </div>
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-success" /> All agents online
             </div>
-            <div className="w-8 h-8 rounded-full bg-secondary border border-border/60 text-foreground text-xs font-semibold flex items-center justify-center">EJ</div>
+            <div className="w-8 h-8 rounded-full bg-secondary border border-border/60 text-foreground text-xs font-semibold flex items-center justify-center">
+              {/* user initials will come from Clerk in Phase 1 */}
+              U
+            </div>
           </div>
         </header>
         <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>

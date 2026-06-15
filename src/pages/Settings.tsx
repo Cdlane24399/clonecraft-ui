@@ -18,7 +18,7 @@ export default function Settings() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <Label className="text-xs">Name</Label>
-              <Input defaultValue="Acme Studio" className="mt-1" />
+              <Input defaultValue="My Workspace" className="mt-1" />
             </div>
             <div>
               <Label className="text-xs">Default stack</Label>

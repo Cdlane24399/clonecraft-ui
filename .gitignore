@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Bun lockfile is intentionally not committed — we use npm. (.hermes/ is local-only too.)
+bun.lockb
+.hermes/
+
 # Env — never commit real secrets (.env.example is the committed template)
 .env
 .env.*
