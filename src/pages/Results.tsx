@@ -410,7 +410,7 @@ function SeverityBadge({ sev }: { sev: string }) {
   return <span className={cn("text-[10px] uppercase tracking-[0.2em] font-bold font-mono px-2 py-0.5 border self-center", map[sev])}>{sev}</span>;
 }
 
-function ExportCard({ icon: Icon, title, desc }: { icon: React.ComponentType<{className?:string; strokeWidth?: number}>; title: string; desc: string }) {
+function ExportCard({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
   return (
     <button className="text-left p-4 bg-card hover:bg-secondary/40 transition-colors">
       <div className="w-9 h-9 bg-foreground text-background flex items-center justify-center mb-3">
