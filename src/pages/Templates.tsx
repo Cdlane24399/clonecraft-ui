@@ -21,7 +21,7 @@ export default function Templates() {
           {templates.map(t => (
             <div key={t.name} className="glass rounded-2xl p-5 hover:border-primary/40 transition-smooth">
               <div className="aspect-video rounded-lg bg-secondary/50 relative overflow-hidden mb-4">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,hsl(258_92%_66%/0.4),transparent_40%),radial-gradient(circle_at_70%_60%,hsl(188_95%_55%/0.3),transparent_40%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,hsl(20_78%_52%/0.4),transparent_40%),radial-gradient(circle_at_70%_60%,hsl(240_5%_42%/0.3),transparent_40%)]" />
               </div>
               <div className="flex items-center justify-between">
                 <div className="font-medium">{t.name}</div>

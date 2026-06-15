@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, CheckCircle2, Download, Github, ExternalLink, Rocket,
-  AlertTriangle, AlertCircle, Sparkles, FileCode2, FolderOpen,
+  AlertTriangle, AlertCircle, Boxes, FileCode2, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,12 +46,12 @@ const components = [
 ];
 
 const colors = [
-  { name: "Primary", val: "#7C5CFC" },
-  { name: "Primary Glow", val: "#A37BFE" },
-  { name: "Accent", val: "#22D3EE" },
-  { name: "Background", val: "#0B0B12" },
-  { name: "Surface", val: "#13131C" },
-  { name: "Border", val: "#23232E" },
+  { name: "Primary", val: "#D9683A" },
+  { name: "Primary Hover", val: "#E8835A" },
+  { name: "Foreground", val: "#ECEAE6" },
+  { name: "Background", val: "#0E0E10" },
+  { name: "Surface", val: "#16161A" },
+  { name: "Border", val: "#26262B" },
 ];
 
 const issues = [
@@ -85,8 +85,8 @@ export default function Results() {
               <ArrowLeft className="w-3 h-3 mr-1" /> Projects
             </Link>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
+                <Boxes className="w-5 h-5 text-primary-foreground" strokeWidth={2} />
               </div>
               <div>
                 <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight">{projectName}</h1>
@@ -274,7 +274,7 @@ export default function Results() {
               <div className="text-sm font-medium">Radius & Shadows</div>
               <div className="mt-4 grid grid-cols-3 gap-3">
                 {[6, 12, 20].map((r) => (
-                  <div key={r} className="bg-secondary/50 h-20 flex items-center justify-center text-xs font-mono text-muted-foreground" style={{ borderRadius: r, boxShadow: "0 10px 30px -10px hsl(258 92% 66% / 0.4)" }}>
+                  <div key={r} className="bg-secondary/50 h-20 flex items-center justify-center text-xs font-mono text-muted-foreground" style={{ borderRadius: r, boxShadow: "0 10px 30px -12px hsl(240 40% 1% / 0.6)" }}>
                     r{r}
                   </div>
                 ))}
@@ -355,8 +355,8 @@ function MockPreview({ tinted }: { tinted?: boolean }) {
       <div className={cn(
         "absolute inset-0",
         tinted
-          ? "bg-[radial-gradient(circle_at_25%_30%,hsl(258_92%_66%/0.45),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(188_95%_55%/0.35),transparent_40%)]"
-          : "bg-[radial-gradient(circle_at_25%_30%,hsl(258_92%_66%/0.35),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(188_95%_55%/0.25),transparent_40%)]"
+          ? "bg-[radial-gradient(circle_at_25%_30%,hsl(20_78%_52%/0.45),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(240_5%_42%/0.35),transparent_40%)]"
+          : "bg-[radial-gradient(circle_at_25%_30%,hsl(20_78%_52%/0.35),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(240_5%_42%/0.25),transparent_40%)]"
       )} />
       <div className="absolute top-4 left-4 right-4 h-2.5 bg-foreground/10 rounded" />
       <div className="absolute top-8 left-4 w-1/3 h-2 bg-foreground/10 rounded" />

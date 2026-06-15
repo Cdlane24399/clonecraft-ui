@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Boxes } from "lucide-react";
 
 const projects = [
   { name: "Linear Clone", url: "linear.app", acc: 96, pages: 5, status: "ready", updated: "2m ago" },
@@ -30,14 +30,14 @@ export default function Projects() {
           {projects.map((p) => (
             <Link to="/app/results" key={p.name} className="glass rounded-2xl p-5 hover:border-primary/40 transition-smooth group block">
               <div className="aspect-video rounded-lg bg-secondary/50 relative overflow-hidden mb-4">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,hsl(258_92%_66%/0.4),transparent_40%),radial-gradient(circle_at_80%_70%,hsl(188_95%_55%/0.3),transparent_40%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,hsl(20_78%_52%/0.4),transparent_40%),radial-gradient(circle_at_80%_70%,hsl(240_5%_42%/0.3),transparent_40%)]" />
                 <div className="absolute top-2 right-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-background/70 border border-border/60">
                   {p.acc}% match
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-accent" />
+                  <Boxes className="w-4 h-4 text-accent" strokeWidth={2} />
                   <div className="font-medium">{p.name}</div>
                 </div>
                 <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded border border-border bg-secondary text-muted-foreground">{p.status}</span>

@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
   ArrowRight,
-  Globe2,
   Code2,
   Palette,
   ShieldCheck,
@@ -13,24 +11,24 @@ import {
   Layers,
   Check,
   Github,
-  ChevronRight,
+  Boxes,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const features = [
   { icon: Bot, title: "Multi-agent analysis", desc: "Specialized agents handle crawling, vision, DOM extraction, and code generation in parallel." },
   { icon: Palette, title: "Design system extraction", desc: "Auto-detect colors, typography, spacing scales, radii, shadows, and reusable component tokens." },
-  { icon: Code2, title: "Editable React codebase", desc: "Production-ready React + Tailwind output you can open, edit, and ship — never a black box." },
+  { icon: Code2, title: "Editable React codebase", desc: "Production-ready React and Tailwind output you can open, edit, and ship. Never a black box." },
   { icon: Gauge, title: "Visual accuracy scoring", desc: "Pixel-diff and structural comparison against the source for every page and breakpoint." },
   { icon: Layers, title: "Component library", desc: "Detects reusable components like navbars, hero sections, pricing tables, and forms." },
-  { icon: ShieldCheck, title: "Ethical guardrails", desc: "Built for redesigns, migrations, internal prototypes, and sites you own — with consent prompts and watermarks." },
+  { icon: ShieldCheck, title: "Ethical guardrails", desc: "Built for redesigns, migrations, and sites you own, with consent prompts and watermarked previews." },
 ];
 
 const steps = [
   { n: "01", title: "Paste a URL", desc: "Drop in any site you own or have permission to analyze." },
   { n: "02", title: "Agents go to work", desc: "Browser automation captures screenshots, routes, DOM, and assets." },
   { n: "03", title: "Code is generated", desc: "Components, design tokens, and routes are scaffolded into a clean codebase." },
-  { n: "04", title: "Edit & export", desc: "Customize in our editor or export to GitHub, ZIP, or a live preview." },
+  { n: "04", title: "Edit and export", desc: "Customize in the editor or export to GitHub, ZIP, or a live preview." },
 ];
 
 const useCases = [
@@ -48,36 +46,45 @@ const plans = [
   },
   {
     name: "Pro", price: "$39", desc: "For designers, founders, and freelancers.",
-    features: ["50 clones / month", "Top 5 pages crawl", "All export stacks", "GitHub push & deploy preview", "Priority agents"],
+    features: ["50 clones / month", "Top 5 pages crawl", "All export stacks", "GitHub push and deploy preview", "Priority agents"],
     cta: "Start Pro trial", highlight: true,
   },
   {
     name: "Team", price: "$129", desc: "Migrations and prototyping at scale.",
-    features: ["Unlimited clones", "Full-site crawl", "Shared workspaces & roles", "SSO & audit logs", "Dedicated support"],
+    features: ["Unlimited clones", "Full-site crawl", "Shared workspaces and roles", "SSO and audit logs", "Dedicated support"],
     cta: "Talk to sales", highlight: false,
   },
 ];
 
 const faqs = [
-  { q: "Is CloneCraft AI legal to use?", a: "CloneCraft is built for redesigning, migrating, prototyping, and analyzing websites you own or have explicit permission to work with. We surface consent prompts, watermark previews, and block flagged domains. You are responsible for the rights to any URL you submit." },
-  { q: "What does the output actually look like?", a: "A clean React + Tailwind (or Next.js) project with semantic components, extracted design tokens, route files, and an issues report. No obfuscated bundles — every file is human-readable and editable." },
-  { q: "How accurate is the clone?", a: "Typical visual accuracy lands between 88% and 96% on marketing-style sites. We report per-page scores and flag anything below threshold as an issue with a suggested fix." },
+  { q: "Is CloneCraft legal to use?", a: "CloneCraft is built for redesigning, migrating, prototyping, and analyzing websites you own or have explicit permission to work with. We surface consent prompts, watermark previews, and block flagged domains. You are responsible for the rights to any URL you submit." },
+  { q: "What does the output actually look like?", a: "A clean React and Tailwind (or Next.js) project with semantic components, extracted design tokens, route files, and an issues report. Every file is human-readable and editable, with no obfuscated bundles." },
+  { q: "How accurate is the clone?", a: "Visual accuracy typically lands between 88% and 96% on marketing-style sites. We report per-page scores and flag anything below threshold as an issue with a suggested fix." },
   { q: "Can I push to GitHub?", a: "Yes. Pro and Team plans support GitHub push, ZIP export, and one-click deploy previews to Vercel-compatible hosts." },
   { q: "Do you store the original assets?", a: "Assets are stored temporarily in your workspace for editing, encrypted at rest, and auto-purged when a project is deleted." },
+];
+
+// Real brand marks via Simple Icons CDN, rendered white for the dark theme.
+const logos = [
+  { name: "Vercel", slug: "vercel" },
+  { name: "Linear", slug: "linear" },
+  { name: "Stripe", slug: "stripe" },
+  { name: "Framer", slug: "framer" },
+  { name: "Notion", slug: "notion" },
+  { name: "Figma", slug: "figma" },
 ];
 
 export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <Boxes className="w-4 h-4 text-primary-foreground" strokeWidth={2} />
             </div>
-            <span className="font-display font-semibold tracking-tight">CloneCraft</span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">AI</span>
+            <span className="font-display font-semibold tracking-tight text-[15px]">CloneCraft</span>
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#how" className="hover:text-foreground transition-smooth">How it works</a>
@@ -86,121 +93,78 @@ export default function Landing() {
             <a href="#pricing" className="hover:text-foreground transition-smooth">Pricing</a>
             <a href="#faq" className="hover:text-foreground transition-smooth">FAQ</a>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button variant="ghost" asChild className="hidden sm:inline-flex">
               <Link to="/app/new">Sign in</Link>
             </Button>
-            <Button asChild className="bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow">
-              <Link to="/app/new">Start cloning <ArrowRight className="w-4 h-4 ml-1" /></Link>
+            <Button asChild>
+              <Link to="/app/new">Start cloning</Link>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden border-b border-border/60">
         <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
-        <div className="absolute inset-0 grid-bg pointer-events-none" />
-        <div className="container relative pt-24 pb-28 md:pt-32 md:pb-36 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs text-muted-foreground mb-8 animate-fade-in">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-            New · Agent v2 with 96% visual accuracy
-          </div>
-          <h1 className="font-display text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05] animate-fade-in">
-            Turn any website into <br className="hidden md:block" />
-            an <span className="gradient-text">editable app.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground animate-fade-in">
-            CloneCraft AI analyzes a website, extracts its design system, generates a working React/Next.js codebase, and lets you customize and ship it — built for redesigns, migrations, and prototypes.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 animate-fade-in">
-            <Button asChild size="lg" className="bg-gradient-primary hover:opacity-90 text-primary-foreground shadow-glow h-12 px-6">
-              <Link to="/app/new">Start cloning <ArrowRight className="w-4 h-4 ml-2" /></Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="h-12 px-6 border-border/80 bg-card/40 backdrop-blur">
-              <Link to="/app/results">View demo</Link>
-            </Button>
-          </div>
-          <p className="mt-5 text-xs text-muted-foreground">
-            Use for redesigns, migrations, internal prototypes, and owned websites.
-          </p>
-
-          {/* Hero mock */}
-          <div className="relative mt-16 mx-auto max-w-5xl animate-scale-in">
-            <div className="absolute -inset-8 bg-gradient-primary opacity-30 blur-3xl rounded-full" />
-            <div className="relative gradient-border">
-              <div className="rounded-[inherit] glass-strong overflow-hidden">
-                <div className="flex items-center gap-2 px-4 h-10 border-b border-border/60 bg-card/60">
-                  <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-destructive/70" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-warning/70" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-success/70" />
-                  </div>
-                  <div className="mx-auto text-xs text-muted-foreground font-mono">clonecraft.ai/app/results</div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border/40">
-                  <div className="bg-background p-5">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Original</div>
-                    <div className="aspect-[16/10] rounded-lg bg-secondary/60 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(258_92%_66%/0.4),transparent_40%),radial-gradient(circle_at_80%_70%,hsl(188_95%_55%/0.3),transparent_40%)]" />
-                      <div className="absolute top-3 left-3 right-3 h-2 bg-foreground/10 rounded" />
-                      <div className="absolute top-7 left-3 w-1/3 h-2 bg-foreground/10 rounded" />
-                      <div className="absolute bottom-6 left-3 right-3 h-16 bg-foreground/5 rounded-md" />
-                    </div>
-                  </div>
-                  <div className="bg-background p-5">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
-                      Generated <span className="px-1.5 py-0.5 rounded bg-success/15 text-success border border-success/20">96% match</span>
-                    </div>
-                    <div className="aspect-[16/10] rounded-lg bg-secondary/60 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_35%,hsl(258_92%_66%/0.45),transparent_40%),radial-gradient(circle_at_75%_65%,hsl(188_95%_55%/0.35),transparent_40%)]" />
-                      <div className="absolute top-3 left-3 right-3 h-2 bg-foreground/10 rounded" />
-                      <div className="absolute top-7 left-3 w-1/3 h-2 bg-foreground/10 rounded" />
-                      <div className="absolute bottom-6 left-3 right-3 h-16 bg-foreground/5 rounded-md border border-primary/30" />
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/40 border-t border-border/40">
-                  {[
-                    { k: "Visual", v: "96%" },
-                    { k: "Responsive", v: "98%" },
-                    { k: "A11y", v: "91%" },
-                    { k: "Pages", v: "7" },
-                  ].map((s) => (
-                    <div key={s.k} className="bg-background p-4">
-                      <div className="text-xs text-muted-foreground">{s.k}</div>
-                      <div className="text-lg font-semibold">{s.v}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        <div className="container relative grid lg:grid-cols-2 gap-12 lg:gap-10 items-center pt-20 pb-16 md:pt-24 md:pb-24">
+          <div className="max-w-xl">
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05] animate-fade-in">
+              Turn any website into an <span className="gradient-text">editable app.</span>
+            </h1>
+            <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-md animate-fade-in">
+              Point CloneCraft at a site you own. It extracts the design system and ships a clean, editable React codebase.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center gap-3 animate-fade-in">
+              <Button asChild size="lg" className="h-12 px-6 text-[15px]">
+                <Link to="/app/new">Start cloning <ArrowRight className="w-4 h-4 ml-2" /></Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="h-12 px-6 text-[15px]">
+                <Link to="/app/results">View demo</Link>
+              </Button>
             </div>
           </div>
 
-          {/* Logos */}
-          <div className="mt-16 text-xs text-muted-foreground tracking-widest uppercase">Trusted by teams at</div>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 opacity-70">
-            {["Linear", "Vercel", "Stripe", "Framer", "Notion", "Cursor"].map((n) => (
-              <div key={n} className="font-display text-lg font-semibold tracking-tight">{n}</div>
-            ))}
+          {/* Real product image (generated), not a div mock */}
+          <div className="relative animate-fade-in">
+            <img
+              src="/hero-clone.jpg"
+              alt="CloneCraft turning a live website into an editable React codebase, side by side"
+              width={1376}
+              height={768}
+              className="w-full rounded-xl border border-border/70 shadow-soft"
+              loading="eager"
+            />
           </div>
+        </div>
+      </section>
+
+      {/* Logo wall (under the hero, real marks, logo-only) */}
+      <section className="container py-14">
+        <div className="text-center text-sm text-muted-foreground">Trusted by teams at</div>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
+          {logos.map((l) => (
+            <img
+              key={l.slug}
+              src={`https://cdn.simpleicons.org/${l.slug}/ffffff`}
+              alt={l.name}
+              height={22}
+              className="h-[22px] w-auto opacity-55 hover:opacity-90 transition-smooth"
+              loading="lazy"
+            />
+          ))}
         </div>
       </section>
 
       {/* How it works */}
       <section id="how" className="container py-24">
-        <SectionHeader eyebrow="How it works" title="From URL to working codebase in minutes" />
-        <div className="mt-14 grid md:grid-cols-4 gap-4">
-          {steps.map((s, i) => (
-            <div key={s.n} className="relative group">
-              <div className="glass rounded-2xl p-6 h-full transition-smooth hover:-translate-y-1">
-                <div className="text-xs font-mono text-primary">{s.n}</div>
-                <div className="mt-3 font-display text-lg font-semibold">{s.title}</div>
-                <div className="mt-2 text-sm text-muted-foreground">{s.desc}</div>
-              </div>
-              {i < steps.length - 1 && (
-                <ChevronRight className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
-              )}
+        <SectionHeader title="From URL to working codebase in minutes" />
+        <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-border/60 bg-border/40">
+          {steps.map((s) => (
+            <div key={s.n} className="bg-card p-6 transition-smooth hover:bg-secondary/40">
+              <div className="text-sm font-medium text-accent tabular-nums">{s.n}</div>
+              <div className="mt-3 font-display text-lg font-semibold">{s.title}</div>
+              <div className="mt-2 text-sm text-muted-foreground leading-relaxed">{s.desc}</div>
             </div>
           ))}
         </div>
@@ -208,15 +172,15 @@ export default function Landing() {
 
       {/* Features */}
       <section id="features" className="container py-24">
-        <SectionHeader eyebrow="Features" title="A full stack of AI agents and tooling" />
+        <SectionHeader eyebrow="Features" title="A full stack of agents and tooling" />
         <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((f) => (
-            <div key={f.title} className="glass rounded-2xl p-6 transition-smooth hover:border-primary/40 hover:-translate-y-0.5 group">
-              <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow mb-4 group-hover:scale-110 transition-smooth">
-                <f.icon className="w-5 h-5 text-primary-foreground" />
+            <div key={f.title} className="rounded-2xl border border-border/60 bg-card/60 p-6 transition-smooth hover:border-accent/40">
+              <div className="w-10 h-10 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center mb-4">
+                <f.icon className="w-5 h-5 text-accent" strokeWidth={2} />
               </div>
               <div className="font-display text-lg font-semibold">{f.title}</div>
-              <div className="mt-2 text-sm text-muted-foreground">{f.desc}</div>
+              <div className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</div>
             </div>
           ))}
         </div>
@@ -224,15 +188,13 @@ export default function Landing() {
 
       {/* Use cases */}
       <section id="use-cases" className="container py-24">
-        <SectionHeader eyebrow="Use cases" title="Built for the work designers actually do" />
+        <SectionHeader title="Built for the work designers actually do" />
         <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {useCases.map((u, i) => (
-            <div key={u.title} className="relative overflow-hidden rounded-2xl glass p-6">
-              <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-primary opacity-10 blur-2xl" />
-              <Workflow className="w-5 h-5 text-accent mb-3" />
+          {useCases.map((u) => (
+            <div key={u.title} className="rounded-2xl border border-border/60 bg-card/60 p-6">
+              <Workflow className="w-5 h-5 text-accent mb-4" strokeWidth={2} />
               <div className="font-display font-semibold">{u.title}</div>
-              <div className="mt-1 text-sm text-muted-foreground">{u.desc}</div>
-              <div className="mt-4 text-xs font-mono text-muted-foreground">0{i + 1}</div>
+              <div className="mt-2 text-sm text-muted-foreground leading-relaxed">{u.desc}</div>
             </div>
           ))}
         </div>
@@ -245,15 +207,15 @@ export default function Landing() {
           {plans.map((p) => (
             <div
               key={p.name}
-              className={`rounded-2xl p-6 flex flex-col ${
-                p.highlight
-                  ? "gradient-border shadow-glow"
-                  : "glass"
+              className={`rounded-2xl p-6 flex flex-col border ${
+                p.highlight ? "border-accent/60 bg-card" : "border-border/60 bg-card/60"
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="font-display text-lg font-semibold">{p.name}</div>
-                {p.highlight && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gradient-primary text-primary-foreground">Most popular</span>}
+                {p.highlight && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/25">Most popular</span>
+                )}
               </div>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-4xl font-display font-semibold">{p.price}</span>
@@ -262,13 +224,13 @@ export default function Landing() {
               <div className="text-sm text-muted-foreground mt-1">{p.desc}</div>
               <ul className="mt-6 space-y-2.5 text-sm flex-1">
                 {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+                  <li key={f} className="flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-accent mt-0.5 shrink-0" strokeWidth={2.5} />
                     <span>{f}</span>
                   </li>
                 ))}
               </ul>
-              <Button asChild className={`mt-6 ${p.highlight ? "bg-gradient-primary text-primary-foreground" : ""}`} variant={p.highlight ? "default" : "outline"}>
+              <Button asChild className="mt-6" variant={p.highlight ? "default" : "outline"}>
                 <Link to="/app/new">{p.cta}</Link>
               </Button>
             </div>
@@ -278,13 +240,13 @@ export default function Landing() {
 
       {/* FAQ */}
       <section id="faq" className="container py-24">
-        <SectionHeader eyebrow="FAQ" title="Questions, answered" />
-        <div className="mt-10 max-w-3xl mx-auto glass rounded-2xl p-2 md:p-4">
+        <SectionHeader title="Questions, answered" />
+        <div className="mt-10 max-w-3xl mx-auto rounded-2xl border border-border/60 bg-card/60 p-2 md:p-4">
           <Accordion type="single" collapsible>
             {faqs.map((f, i) => (
               <AccordionItem key={i} value={`item-${i}`} className="border-border/60">
                 <AccordionTrigger className="px-4 text-left">{f.q}</AccordionTrigger>
-                <AccordionContent className="px-4 text-muted-foreground">{f.a}</AccordionContent>
+                <AccordionContent className="px-4 text-muted-foreground leading-relaxed">{f.a}</AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
@@ -293,21 +255,20 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="container pb-24">
-        <div className="relative overflow-hidden rounded-3xl gradient-border p-10 md:p-16 text-center">
-          <div className="absolute inset-0 bg-gradient-hero opacity-80" />
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-10 md:p-16 text-center">
+          <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
           <div className="relative">
-            <Globe2 className="w-10 h-10 text-accent mx-auto mb-4" />
             <h3 className="font-display text-3xl md:text-5xl font-semibold tracking-tight">
-              Ship your next redesign <span className="gradient-text">10× faster.</span>
+              Rebuild any site as <span className="gradient-text">code you can ship.</span>
             </h3>
-            <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-              Start with a URL you own and watch our agents rebuild it as an editable codebase.
+            <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              Start with a URL you own and watch the agents rebuild it as an editable codebase.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
-              <Button asChild size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow h-12 px-6">
+              <Button asChild size="lg" className="h-12 px-6 text-[15px]">
                 <Link to="/app/new">Start cloning <ArrowRight className="w-4 h-4 ml-2" /></Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 px-6">
+              <Button asChild size="lg" variant="outline" className="h-12 px-6 text-[15px]">
                 <Link to="/app/results">View demo</Link>
               </Button>
             </div>
@@ -317,16 +278,16 @@ export default function Landing() {
 
       <footer className="border-t border-border/60 py-10">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 rounded-md bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="w-3 h-3 text-primary-foreground" />
+              <Boxes className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={2} />
             </div>
-            <span>© {new Date().getFullYear()} CloneCraft AI. Use ethically.</span>
+            <span>© {new Date().getFullYear()} CloneCraft. Built for sites you own.</span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-foreground">Privacy</a>
-            <a href="#" className="hover:text-foreground">Terms</a>
-            <a href="#" className="hover:text-foreground inline-flex items-center gap-1"><Github className="w-4 h-4" /> GitHub</a>
+            <a href="#" className="hover:text-foreground transition-smooth">Privacy</a>
+            <a href="#" className="hover:text-foreground transition-smooth">Terms</a>
+            <a href="#" className="hover:text-foreground transition-smooth inline-flex items-center gap-1.5"><Github className="w-4 h-4" /> GitHub</a>
           </div>
         </div>
       </footer>
@@ -334,11 +295,11 @@ export default function Landing() {
   );
 }
 
-function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionHeader({ eyebrow, title }: { eyebrow?: string; title: string }) {
   return (
-    <div className="text-center max-w-2xl mx-auto">
-      <div className="text-xs uppercase tracking-widest text-accent font-mono">{eyebrow}</div>
-      <h2 className="mt-3 font-display text-3xl md:text-5xl font-semibold tracking-tight">{title}</h2>
+    <div className="max-w-2xl">
+      {eyebrow && <div className="text-[13px] font-medium text-accent mb-3">{eyebrow}</div>}
+      <h2 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">{title}</h2>
     </div>
   );
 }

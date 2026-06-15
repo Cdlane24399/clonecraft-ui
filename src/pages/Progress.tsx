@@ -114,7 +114,7 @@ export default function Progress() {
                   >
                     <div className={cn(
                       "mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                      done ? "bg-success/15 text-success" : current ? "bg-gradient-primary text-primary-foreground animate-pulse-glow" : "bg-secondary text-muted-foreground"
+                      done ? "bg-success/15 text-success" : current ? "bg-gradient-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
                     )}>
                       {done ? <Check className="w-4 h-4" /> : current ? <Loader2 className="w-4 h-4 animate-spin" /> : <s.icon className="w-4 h-4" />}
                     </div>

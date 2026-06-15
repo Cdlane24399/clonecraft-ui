@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Sparkles, Wand2, Info } from "lucide-react";
+import { Globe, Plus, Wand2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const depths = [
@@ -51,7 +51,7 @@ export default function NewClone() {
     <AppShell>
       <div className="container max-w-5xl py-10">
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-accent" />
+          <Plus className="w-3.5 h-3.5 text-accent" strokeWidth={2} />
           New clone
         </div>
         <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">Start a new clone</h1>
