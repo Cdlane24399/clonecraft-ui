@@ -1,6 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Sparkles,
   FolderKanban,
   GaugeCircle,
   LayoutTemplate,
@@ -23,19 +22,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   return (
     <div className="min-h-screen flex w-full bg-background">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border/60 bg-sidebar/80 backdrop-blur-xl">
-        <div className="px-5 h-16 flex items-center gap-2 border-b border-border/60">
-          <NavLink to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-display font-semibold tracking-tight">CloneCraft</span>
-            <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">AI</span>
+      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-sidebar">
+        <div className="px-5 h-16 flex items-center gap-2 border-b border-border">
+          <NavLink to="/" className="flex items-baseline gap-2 group">
+            <span className="w-2 h-2 bg-foreground translate-y-[-2px]" aria-hidden />
+            <span className="font-display font-bold tracking-tight text-lg">CloneCraft</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">AI</span>
           </NavLink>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Workspace</div>
+        <nav className="flex-1 p-3 space-y-px">
+          <div className="px-2 pt-2 pb-3 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Workspace</div>
           {nav.map((item) => {
             const active = pathname === item.to || (item.to === "/app/new" && pathname === "/app");
             return (
@@ -43,57 +40,55 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-smooth",
+                  "flex items-center gap-3 px-3 py-2 text-sm transition-colors border-l-2",
                   active
-                    ? "bg-secondary text-foreground shadow-card"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    ? "border-foreground text-foreground bg-secondary/60 font-medium"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                 )}
               >
-                <item.icon className="w-4 h-4" />
+                <item.icon className="w-4 h-4" strokeWidth={1.5} />
                 {item.label}
                 {item.to === "/app/new" && (
-                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20">⌘ N</span>
+                  <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 border border-border text-muted-foreground">⌘N</span>
                 )}
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-border/60 space-y-1">
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60" href="#">
-            <LifeBuoy className="w-4 h-4" /> Help & docs
+        <div className="p-3 border-t border-border space-y-px">
+          <a className="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:text-foreground" href="#">
+            <LifeBuoy className="w-4 h-4" strokeWidth={1.5} /> Help & docs
           </a>
-          <a className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60" href="#">
-            <Github className="w-4 h-4" /> Changelog
+          <a className="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:text-foreground" href="#">
+            <Github className="w-4 h-4" strokeWidth={1.5} /> Changelog
           </a>
-          <div className="mt-2 p-3 rounded-xl glass">
-            <div className="text-xs text-muted-foreground">Plan</div>
-            <div className="flex items-center justify-between">
+          <div className="mt-3 p-3 border border-border bg-background">
+            <div className="eyebrow">Plan</div>
+            <div className="flex items-center justify-between mt-1">
               <div className="text-sm font-medium">Pro · trial</div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-gradient-primary text-primary-foreground">12d left</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-foreground text-background">12d</span>
             </div>
           </div>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-border/60 bg-background/60 backdrop-blur-xl flex items-center px-4 md:px-8 gap-4 sticky top-0 z-30">
+        <header className="h-16 border-b border-border bg-background flex items-center px-4 md:px-10 gap-4 sticky top-0 z-30">
           <div className="md:hidden flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-semibold">CloneCraft</span>
+            <span className="w-2 h-2 bg-foreground" />
+            <span className="font-display font-bold">CloneCraft</span>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="hidden md:flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             <span>Workspace</span>
             <span className="opacity-50">/</span>
-            <span className="text-foreground font-medium">Acme Studio</span>
+            <span className="text-foreground">Acme Studio</span>
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" /> All agents online
+          <div className="ml-auto flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="w-1.5 h-1.5 bg-foreground" /> All agents online
             </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">EJ</div>
+            <div className="w-8 h-8 bg-foreground text-background text-[11px] font-mono flex items-center justify-center">EJ</div>
           </div>
         </header>
         <main className="flex-1 min-w-0">{children}</main>
