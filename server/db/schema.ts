@@ -1,19 +1,50 @@
-import { pgTable, text, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, jsonb, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { createId } from "./id";
 
-// A clone target — one row per website the user has cloned.
-export const projects = pgTable("projects", {
-  id: text("id").primaryKey().$defaultFn(() => createId("prj")),
-  name: text("name").notNull(),
-  url: text("url").notNull(),
+// ─────────────────────────────────────────────────────────────────────────────
+// Users — profile cache for Clerk. Authoritative identity lives in Clerk;
+// we keep a row here for FK targets, fast lookups, and the consent record.
+// ─────────────────────────────────────────────────────────────────────────────
+export const users = pgTable("users", {
+  // Clerk user id (e.g. "user_2a…").
+  id: text("id").primaryKey(),
+  email: text("email"),
+  displayName: text("display_name"),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-// A single clone run against a URL with a chosen config.
+// ─────────────────────────────────────────────────────────────────────────────
+// Projects — one row per (user, website) the user has cloned.
+// ─────────────────────────────────────────────────────────────────────────────
+export const projects = pgTable(
+  "projects",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId("prj")),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("projects_user_idx").on(t.userId),
+  })
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Runs — a single clone run against a URL with a chosen config.
+// ─────────────────────────────────────────────────────────────────────────────
 export const runs = pgTable(
   "runs",
   {
     id: text("id").primaryKey().$defaultFn(() => createId("run")),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     // { depth, stack, goal, opts }
@@ -29,9 +60,36 @@ export const runs = pgTable(
   },
   (t) => ({
     projectIdx: index("runs_project_idx").on(t.projectId),
+    userIdx: index("runs_user_idx").on(t.userId),
   })
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Consent — per-user, per-policy-version acceptance. One row per (userId, kind).
+// Written on first ToS / AUP / Privacy click-through. Read at request time to
+// gate sensitive actions (e.g. starting a run).
+// ─────────────────────────────────────────────────────────────────────────────
+export const consentAcceptance = pgTable(
+  "consent_acceptance",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "tos" | "privacy" | "aup"
+    kind: text("kind").notNull(),
+    version: text("version").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.kind] }),
+  })
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
 
 export type RunConfig = {
@@ -79,5 +137,7 @@ export type RunResult = {
   sandboxId?: string | null;
 };
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export type Run = typeof runs.$inferSelect;
 export type Project = typeof projects.$inferSelect;

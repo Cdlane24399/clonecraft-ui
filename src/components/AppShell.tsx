@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useUser, UserButton } from "@clerk/clerk-react";
 import {
   FolderKanban,
   GaugeCircle,
@@ -19,8 +20,27 @@ const nav = [
   { to: "/app/settings", label: "Settings", icon: SettingsIcon },
 ];
 
+function initialsFor(name: string | null | undefined, email: string | null | undefined): string {
+  const source = (name || email || "U").trim();
+  if (!source) return "U";
+  const parts = source.split(/[\s@.]+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const { user, isLoaded } = useUser();
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses[0]?.emailAddress ||
+    "Default";
+  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress ?? null;
+  const initials = isLoaded ? initialsFor(displayName, email) : "…";
+
   return (
     <div className="h-screen flex w-full bg-background overflow-hidden">
       <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar/80 backdrop-blur-xl overflow-y-auto">
@@ -80,16 +100,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <span>Workspace</span>
             <span className="opacity-50">/</span>
-            <span className="text-foreground font-medium">{/* replaced by Clerk user in Phase 1 */}Default</span>
+            <span className="text-foreground font-medium truncate max-w-[200px]">
+              {isLoaded ? displayName : "Default"}
+            </span>
           </div>
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
               <span className="w-2 h-2 rounded-full bg-success" /> All agents online
             </div>
-            <div className="w-8 h-8 rounded-full bg-secondary border border-border/60 text-foreground text-xs font-semibold flex items-center justify-center">
-              {/* user initials will come from Clerk in Phase 1 */}
-              U
-            </div>
+            {isLoaded && user ? (
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8 ring-1 ring-border/60",
+                  },
+                }}
+                userProfileProps={{
+                  appearance: {
+                    elements: {
+                      card: "bg-card border border-border/60",
+                    },
+                  },
+                }}
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-secondary border border-border/60 text-foreground text-xs font-semibold flex items-center justify-center">
+                {initials}
+              </div>
+            )}
           </div>
         </header>
         <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>

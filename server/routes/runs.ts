@@ -8,6 +8,7 @@ import { getLive } from "../lib/redis";
 import { runPipeline } from "../pipeline/run";
 import { buildAndPreview } from "../lib/sandbox";
 import { screenshotUrl } from "../lib/browser";
+import { requireAuth, getUserId } from "../lib/auth";
 
 export const runsRoute = new Hono();
 
@@ -29,8 +30,13 @@ function projectNameFromUrl(url: string): string {
   }
 }
 
-// POST /api/runs — start a real clone run.
+// All routes on this router require an authenticated user. (Health is on a
+// separate router so the deploy probe never depends on Clerk being live.)
+runsRoute.use("*", requireAuth());
+
+// POST /api/runs — start a real clone run, scoped to the caller.
 runsRoute.post("/", async (c) => {
+  const userId = getUserId(c);
   const body = await c.req.json().catch(() => ({}));
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
@@ -41,12 +47,12 @@ runsRoute.post("/", async (c) => {
 
   const [project] = await db
     .insert(projects)
-    .values({ name: projectNameFromUrl(url), url })
+    .values({ userId, name: projectNameFromUrl(url), url })
     .returning();
 
   const [run] = await db
     .insert(runs)
-    .values({ projectId: project.id, url, config, status: "queued" })
+    .values({ userId, projectId: project.id, url, config, status: "queued" })
     .returning();
 
   // Kick off the pipeline in the background; respond immediately with the id.
@@ -55,11 +61,16 @@ runsRoute.post("/", async (c) => {
   return c.json({ id: run.id, projectId: project.id, status: run.status }, 201);
 });
 
-// GET /api/runs/:id — live status (Redis) merged with the durable record.
+// GET /api/runs/:id — live status for a run the caller owns.
 runsRoute.get("/:id", async (c) => {
+  const userId = getUserId(c);
   const id = c.req.param("id");
   const [run] = await db.select().from(runs).where(eq(runs.id, id)).limit(1);
   if (!run) return c.json({ error: "Run not found" }, 404);
+  if (run.userId !== userId) {
+    // Don't leak existence to non-owners.
+    return c.json({ error: "Run not found" }, 404);
+  }
 
   const live = await getLive(id);
   return c.json({
@@ -77,12 +88,16 @@ runsRoute.get("/:id", async (c) => {
 });
 
 // POST /api/runs/:id/preview — (re)launch a live preview sandbox for a finished
-// run. Preview sandboxes expire, so this rebuilds the stored files in a fresh
-// sandbox and returns a new public URL.
+// run the caller owns. Preview sandboxes expire, so this rebuilds the stored
+// files in a fresh sandbox and returns a new public URL.
 runsRoute.post("/:id/preview", async (c) => {
+  const userId = getUserId(c);
   const id = c.req.param("id");
   const [run] = await db.select().from(runs).where(eq(runs.id, id)).limit(1);
   if (!run) return c.json({ error: "Run not found" }, 404);
+  if (run.userId !== userId) {
+    return c.json({ error: "Run not found" }, 404);
+  }
   if (run.status !== "succeeded" || !run.result) {
     return c.json({ error: "Run has no generated files to preview" }, 400);
   }
@@ -111,8 +126,14 @@ runsRoute.post("/:id/preview", async (c) => {
   return c.json({ previewUrl: preview.previewUrl, renderedScreenshotDataUrl });
 });
 
-// GET /api/runs — recent runs.
+// GET /api/runs — recent runs for the caller.
 runsRoute.get("/", async (c) => {
-  const rows = await db.select().from(runs).orderBy(desc(runs.createdAt)).limit(50);
+  const userId = getUserId(c);
+  const rows = await db
+    .select()
+    .from(runs)
+    .where(eq(runs.userId, userId))
+    .orderBy(desc(runs.createdAt))
+    .limit(50);
   return c.json(rows);
 });

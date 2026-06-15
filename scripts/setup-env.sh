@@ -93,8 +93,21 @@ echo "and prints a whsec_… key. Skip for now — we'll add it then."
 echo
 echo "── 2. CLERK  (auth)  ──"
 open_browser "https://dashboard.clerk.com/"
-prompt_value "VITE_CLERK_PUBLISHABLE_KEY" "Clerk publishable key (pk_test_…). API Keys → Show publishable key." "" secret
-prompt_value "CLERK_SECRET_KEY"           "Clerk secret key (sk_test_…)." "" secret
+# Read the value just written (or the existing one) and mirror to a non-VITE
+# name the server can read. The publishable key is designed to be public.
+prompt_value "VITE_CLERK_PUBLISHABLE_KEY" "Clerk publishable key (pk_test_…). Bundled into the frontend and mirrored to CLERK_PUBLISHABLE_KEY for the server." "" secret
+VITE_PK=$(grep -E '^VITE_CLERK_PUBLISHABLE_KEY=' "$ENV_FILE" | head -1 | cut -d= -f2-)
+if [ -n "$VITE_PK" ]; then
+  if grep -qE '^CLERK_PUBLISHABLE_KEY=' "$ENV_FILE"; then
+    sed -i.bak -E "s|^CLERK_PUBLISHABLE_KEY=.*$|CLERK_PUBLISHABLE_KEY=${VITE_PK}|" "$ENV_FILE"
+    rm -f "$ENV_FILE.bak"
+  else
+    echo "CLERK_PUBLISHABLE_KEY=${VITE_PK}" >> "$ENV_FILE"
+  fi
+  echo "  ↳ mirrored to CLERK_PUBLISHABLE_KEY for the server"
+fi
+prompt_value "CLERK_SECRET_KEY" "Clerk secret key (sk_test_…). Server only." "" secret
+prompt_value "CLERK_WEBHOOK_SIGNING_SECRET" "Optional. Clerk webhook signing secret (whsec_…). Leave blank to fill in later." "" secret
 
 # ── Sentry ──────────────────────────────────────────────────────────────
 echo

@@ -33,6 +33,16 @@ const schema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+  // Clerk — auth. The publishable key is also embedded in the frontend
+  // bundle as VITE_CLERK_PUBLISHABLE_KEY; we keep a non-VITE alias here so
+  // the Hono server can read it (VITE_ vars are stripped from non-frontend
+  // builds, and even if they weren't, c.env in @hono/node-server is
+  // process.env-shaped and won't see them).
+  CLERK_PUBLISHABLE_KEY: z.string().min(1),
+  CLERK_SECRET_KEY: z.string().min(1),
+  // Optional: webhook signing secret for /api/webhooks/clerk.
+  CLERK_WEBHOOK_SIGNING_SECRET: z.string().optional(),
+
   PORT: z.coerce.number().default(8787),
   NODE_ENV: z.string().default("development"),
 });

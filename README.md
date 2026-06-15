@@ -70,9 +70,31 @@ Drizzle schema lives in `server/db/schema.ts`. Generate + run migrations:
 ```bash
 npm run db:generate          # emit a new SQL migration from schema changes
 npm run db:push              # push the schema directly (dev only — no migration history)
+npx tsx scripts/db-migrate.ts   # apply committed migrations via the DIRECT_URL connection
+npx tsx scripts/db-reset-dev.ts # dev-only: TRUNCATE projects + runs (does NOT touch users)
 ```
 
 In production, migrations are applied by CI on every merge to `main`. `DIRECT_URL` is the non-pooled connection that migrations use; `DATABASE_URL` is the pooled connection for the live API.
+
+## Auth (Clerk)
+
+All `/api/*` routes except `/api/health` and the webhook endpoints are gated by Clerk session tokens. The middleware lives in `server/lib/clerk.ts` and is hand-rolled on top of `@clerk/backend`'s `authenticateRequest()` (we don't use the deprecated `@hono/clerk-auth` package because its `c.env` lookup is incompatible with `@hono/node-server`).
+
+The authed state lives in a Hono context variable:
+
+```ts
+import { readUserId, requireAuth, getUserId } from "./lib/auth";
+
+app.use("/api/protected/*", requireAuth());
+app.post("/api/protected/thing", (c) => {
+  const userId = getUserId(c);   // throws 401 if unauthenticated
+  // ...use userId to scope all DB writes...
+});
+```
+
+On the frontend, `<ClerkProvider>` is mounted in `src/main.tsx`. Public routes (`/`, `/sign-in`, `/sign-up`) and the `/app/*` gated subtree are wired in `src/App.tsx`. `src/components/RequireAuth.tsx` is the gate that prompts the user to sign in.
+
+Required env vars: `VITE_CLERK_PUBLISHABLE_KEY` (frontend) and `CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` (server). `scripts/setup-env.sh` mirrors the publishable key to both names so the server can read it.
 
 ## Deploy
 

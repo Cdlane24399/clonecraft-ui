@@ -1,4 +1,9 @@
 // Thin client for the CloneCraft API (proxied to the Hono server in dev).
+//
+// In dev, /api/* is reverse-proxied by Vite to the Hono server on :8787.
+// In production, the frontend is on Vercel and the API is on Fly — they are
+// different origins, so we MUST send cookies cross-origin. `credentials:
+// "include"` does that for the Clerk session cookie.
 
 const BASE = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -62,8 +67,17 @@ export type ProjectSummary = {
   } | null;
 };
 
+export type Me = {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+};
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
+    credentials: "include",
     headers: { "content-type": "application/json" },
     ...init,
   });
@@ -95,4 +109,8 @@ export function relaunchPreview(id: string) {
 
 export function listProjects() {
   return http<ProjectSummary[]>("/api/projects");
+}
+
+export function getMe() {
+  return http<Me>("/api/me");
 }
