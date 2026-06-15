@@ -5,19 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, CheckCircle2, Download, Github, ExternalLink, Rocket,
-  AlertTriangle, AlertCircle, Sparkles, FileCode2, FolderOpen,
+  AlertTriangle, AlertCircle, FileCode2, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const stats = [
-  { k: "Visual accuracy", v: "94%", tone: "primary" },
-  { k: "Responsive", v: "98%", tone: "accent" },
-  { k: "Build status", v: "Passing", tone: "success" },
-  { k: "Pages", v: "7", tone: "muted" },
-  { k: "Components", v: "28", tone: "muted" },
-  { k: "Assets", v: "46", tone: "muted" },
-  { k: "Accessibility", v: "91", tone: "accent" },
-  { k: "Prod readiness", v: "Medium", tone: "warning" },
+  { k: "Accuracy", v: "94%" },
+  { k: "Responsive", v: "98%" },
+  { k: "Build", v: "Pass" },
+  { k: "Pages", v: "07" },
+  { k: "Components", v: "28" },
+  { k: "Assets", v: "46" },
+  { k: "A11y", v: "91" },
+  { k: "Readiness", v: "Mid" },
 ];
 
 const pages = [
@@ -46,19 +46,19 @@ const components = [
 ];
 
 const colors = [
-  { name: "Primary", val: "#7C5CFC" },
-  { name: "Primary Glow", val: "#A37BFE" },
-  { name: "Accent", val: "#22D3EE" },
-  { name: "Background", val: "#0B0B12" },
-  { name: "Surface", val: "#13131C" },
-  { name: "Border", val: "#23232E" },
+  { name: "Ink", val: "#0d0d0d" },
+  { name: "Graphite", val: "#2d2d2d" },
+  { name: "Paper", val: "#f5f3ee" },
+  { name: "Linen", val: "#e8e4dd" },
+  { name: "Moss", val: "#3c5a4a" },
+  { name: "Tobacco", val: "#a36b2a" },
 ];
 
 const issues = [
   { sev: "high", title: "One unresolved SVG asset on /pricing", fix: "Re-fetch with auth header or replace with inline SVG fallback." },
   { sev: "med", title: "Missing hover animation on PricingCard CTA", fix: "Apply transition-transform + hover:-translate-y-0.5 to button." },
   { sev: "med", title: "Mobile spacing differs on Hero by 12px", fix: "Switch py-16 to py-20 at md breakpoint." },
-  { sev: "low", title: "Font fallback mismatch on body", fix: "Add 'Inter' before sans-serif in fontFamily stack." },
+  { sev: "low", title: "Font fallback mismatch on body", fix: "Add 'Epilogue' before sans-serif in fontFamily stack." },
   { sev: "low", title: "Alt text missing on 3 marketing images", fix: "Generate descriptive alt via vision agent." },
 ];
 
@@ -72,269 +72,282 @@ const tree = [
 
 export default function Results() {
   const [tab, setTab] = useState("overview");
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const url = (typeof window !== "undefined" && sessionStorage.getItem("cc:lastUrl")) || "https://example.com";
   const projectName = projectFromUrl(url);
 
   return (
     <AppShell>
-      <div className="container max-w-7xl py-10">
-        {/* Header */}
-        <div className="flex flex-wrap items-start gap-4 justify-between">
-          <div>
-            <Link to="/app/projects" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground mb-2">
-              <ArrowLeft className="w-3 h-3 mr-1" /> Projects
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight">{projectName}</h1>
-                <div className="text-xs text-muted-foreground font-mono">{url} · generated 2 minutes ago</div>
-              </div>
+      <div className="px-6 md:px-10 py-10">
+        <div className="max-w-7xl mx-auto border border-border bg-card">
+          {/* Header */}
+          <div className="p-8 md:p-10 border-b border-border flex flex-col md:flex-row justify-between md:items-end gap-6">
+            <div className="space-y-2">
+              <Link to="/app/projects" className="inline-flex items-center gap-1.5 eyebrow hover:text-foreground transition-colors">
+                <ArrowLeft className="w-3 h-3" strokeWidth={2} /> Projects · Workspace
+              </Link>
+              <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight">{projectName}</h1>
+              <p className="text-sm text-muted-foreground font-light">
+                <span className="font-mono">{url}</span>
+                <span className="mx-2 text-border">|</span>
+                Generated 2 minutes ago
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="rounded-none border-foreground hover:bg-foreground hover:text-background">
+                <Download className="w-4 h-4 mr-2" strokeWidth={1.5} /> Export ZIP
+              </Button>
+              <Button variant="outline" className="rounded-none border-foreground hover:bg-foreground hover:text-background">
+                <Github className="w-4 h-4 mr-2" strokeWidth={1.5} /> Push to GitHub
+              </Button>
+              <Button className="rounded-none bg-foreground text-background hover:bg-foreground/85">
+                <Rocket className="w-4 h-4 mr-2" strokeWidth={1.5} /> Deploy preview
+              </Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline"><Download className="w-4 h-4 mr-2" /> Export ZIP</Button>
-            <Button variant="outline"><Github className="w-4 h-4 mr-2" /> Push to GitHub</Button>
-            <Button className="bg-gradient-primary text-primary-foreground shadow-glow"><Rocket className="w-4 h-4 mr-2" /> Deploy preview</Button>
-          </div>
-        </div>
 
-        {/* Stats */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-          {stats.map((s) => (
-            <div key={s.k} className="glass rounded-xl p-4">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.k}</div>
-              <div className={cn(
-                "text-xl font-display font-semibold mt-1",
-                s.tone === "primary" && "gradient-text",
-                s.tone === "success" && "text-success",
-                s.tone === "warning" && "text-warning",
-                s.tone === "accent" && "text-accent",
-              )}>{s.v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Side-by-side preview */}
-        <div className="mt-6 glass rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between">
-            <div className="text-sm font-medium">Original vs Generated</div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="px-2 py-0.5 rounded bg-secondary">Desktop</span>
-              <span className="px-2 py-0.5 rounded bg-secondary/40">Tablet</span>
-              <span className="px-2 py-0.5 rounded bg-secondary/40">Mobile</span>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-px bg-border/40">
-            {(["Original", "Generated"] as const).map((label, i) => (
-              <div key={label} className="bg-background p-4">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
-                  {label}
-                  {i === 1 && <span className="px-1.5 py-0.5 rounded bg-success/15 text-success border border-success/20">94% match</span>}
-                </div>
-                <MockPreview tinted={i === 1} />
+          {/* Metrics bar */}
+          <div className="grid grid-cols-4 md:grid-cols-8 divide-x divide-border border-b border-border">
+            {stats.map((s) => (
+              <div key={s.k} className="p-5 md:p-6">
+                <p className="eyebrow mb-1">{s.k}</p>
+                <p className="font-display text-2xl font-bold tracking-tight">{s.v}</p>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Tabs */}
-        <Tabs value={tab} onValueChange={setTab} className="mt-8">
-          <TabsList className="bg-secondary/40 border border-border/60">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="pages">Pages</TabsTrigger>
-            <TabsTrigger value="components">Components</TabsTrigger>
-            <TabsTrigger value="design">Design System</TabsTrigger>
-            <TabsTrigger value="issues">Issues</TabsTrigger>
-            <TabsTrigger value="code">Code Export</TabsTrigger>
-          </TabsList>
-
-          {/* Overview */}
-          <TabsContent value="overview" className="mt-6 grid lg:grid-cols-3 gap-4">
-            <div className="glass rounded-2xl p-6 lg:col-span-2">
-              <div className="text-sm font-medium">Summary</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Generated 7 routes and 28 reusable components with a 94% visual match. Production readiness is medium pending 1 high-severity issue. Output stack: React + Tailwind.
-              </p>
-              <div className="mt-5 grid sm:grid-cols-3 gap-3">
-                {[
-                  { k: "Tokens extracted", v: "42" },
-                  { k: "Total LOC", v: "3,184" },
-                  { k: "Bundle size", v: "112 KB" },
-                ].map((b) => (
-                  <div key={b.k} className="rounded-xl border border-border/60 p-4 bg-secondary/30">
-                    <div className="text-xs text-muted-foreground">{b.k}</div>
-                    <div className="font-display text-lg font-semibold">{b.v}</div>
-                  </div>
-                ))}
+          {/* Asymmetric 60/40 comparator */}
+          <div className="flex flex-col md:flex-row">
+            <div className="w-full md:w-[60%] border-r border-border p-8 md:p-10">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="font-display text-2xl font-bold tracking-tight">Generated Output</h2>
+                <span className="bg-foreground text-background px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] font-bold">94% Match</span>
               </div>
+              <MockPreview tinted />
             </div>
-            <div className="glass rounded-2xl p-6">
-              <div className="text-sm font-medium">Next steps</div>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-success mt-0.5" /> Review 5 detected issues</li>
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-success mt-0.5" /> Customize brand tokens</li>
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-success mt-0.5" /> Push to GitHub or export</li>
-                <li className="flex gap-2"><CheckCircle2 className="w-4 h-4 text-success mt-0.5" /> Deploy a preview URL</li>
-              </ul>
-            </div>
-          </TabsContent>
-
-          {/* Pages */}
-          <TabsContent value="pages" className="mt-6">
-            <div className="glass rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-12 text-[11px] uppercase tracking-wider text-muted-foreground px-5 py-3 border-b border-border/60">
-                <div className="col-span-5">Route</div>
-                <div className="col-span-3">Title</div>
-                <div className="col-span-2">Status</div>
-                <div className="col-span-2 text-right">Accuracy</div>
-              </div>
-              {pages.map((p) => (
-                <div key={p.path} className="grid grid-cols-12 px-5 py-3 border-b border-border/40 last:border-0 hover:bg-secondary/30 transition-smooth items-center">
-                  <div className="col-span-5 font-mono text-sm">{p.path}</div>
-                  <div className="col-span-3 text-sm">{p.title}</div>
-                  <div className="col-span-2">
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <div className="col-span-2 text-right">
-                    <span className={cn("font-mono text-sm", p.acc >= 95 ? "text-success" : p.acc >= 88 ? "text-warning" : "text-destructive")}>{p.acc}%</span>
-                  </div>
+            <div className="w-full md:w-[40%] p-8 md:p-10 bg-secondary/40">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="font-display text-2xl font-bold tracking-tight opacity-50">Reference</h2>
+                <div className="flex gap-4">
+                  {(["desktop", "mobile"] as const).map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDevice(d)}
+                      className={cn(
+                        "text-[10px] uppercase tracking-[0.2em] font-bold pb-0.5 border-b-2 transition-colors",
+                        device === d ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {d}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Components */}
-          <TabsContent value="components" className="mt-6">
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {components.map((c) => (
-                <div key={c.name} className="glass rounded-xl p-4 hover:border-primary/40 transition-smooth group">
-                  <div className="aspect-video rounded-lg bg-secondary/50 mb-3 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-primary opacity-10 group-hover:opacity-20 transition-smooth" />
-                    <div className="absolute inset-3 border border-border/70 rounded-md flex items-center justify-center">
-                      <span className="text-xs font-mono text-muted-foreground">{c.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{c.name}</div>
-                    <span className="text-[10px] font-mono text-muted-foreground">×{c.count}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">confidence {Math.round(c.conf * 100)}%</div>
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Design system */}
-          <TabsContent value="design" className="mt-6 grid lg:grid-cols-2 gap-4">
-            <div className="glass rounded-2xl p-6">
-              <div className="text-sm font-medium">Colors</div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {colors.map((c) => (
-                  <div key={c.name} className="rounded-lg border border-border/60 overflow-hidden">
-                    <div className="aspect-video" style={{ background: c.val }} />
-                    <div className="p-2">
-                      <div className="text-xs font-medium">{c.name}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground">{c.val}</div>
-                    </div>
-                  </div>
-                ))}
               </div>
+              <MockPreview compact />
             </div>
-            <div className="glass rounded-2xl p-6">
-              <div className="text-sm font-medium">Typography</div>
-              <div className="mt-4 space-y-3">
+          </div>
+
+          {/* Tabs */}
+          <div className="border-t border-border p-8 md:p-10">
+            <Tabs value={tab} onValueChange={setTab}>
+              <TabsList className="bg-transparent border-b border-border w-full justify-start rounded-none h-auto p-0 gap-8">
                 {[
-                  { label: "Display / 56", cls: "text-5xl font-semibold" },
-                  { label: "Heading / 32", cls: "text-3xl font-semibold" },
-                  { label: "Body / 16", cls: "text-base" },
-                  { label: "Mono / 13", cls: "text-[13px] font-mono" },
+                  { v: "overview", l: "Overview" },
+                  { v: "pages", l: "Pages" },
+                  { v: "components", l: "Components" },
+                  { v: "design", l: "Design System" },
+                  { v: "issues", l: "Issues" },
+                  { v: "code", l: "Code Export" },
                 ].map((t) => (
-                  <div key={t.label} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-0">
-                    <span className={t.cls}>The quick brown fox</span>
-                    <span className="text-xs text-muted-foreground font-mono">{t.label}</span>
-                  </div>
+                  <TabsTrigger
+                    key={t.v}
+                    value={t.v}
+                    className="rounded-none border-0 border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground data-[state=active]:text-foreground"
+                  >
+                    {t.l}
+                  </TabsTrigger>
                 ))}
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-6">
-              <div className="text-sm font-medium">Spacing scale</div>
-              <div className="mt-4 space-y-2">
-                {[4, 8, 12, 16, 24, 32, 48, 64].map((s) => (
-                  <div key={s} className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                    <div className="bg-gradient-primary h-3 rounded" style={{ width: s * 2 }} />
-                    {s}px
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-6">
-              <div className="text-sm font-medium">Radius & Shadows</div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {[6, 12, 20].map((r) => (
-                  <div key={r} className="bg-secondary/50 h-20 flex items-center justify-center text-xs font-mono text-muted-foreground" style={{ borderRadius: r, boxShadow: "0 10px 30px -10px hsl(258 92% 66% / 0.4)" }}>
-                    r{r}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-primary text-primary-foreground py-2 text-center text-xs">Primary</div>
-                <div className="rounded-lg bg-secondary py-2 text-center text-xs">Secondary</div>
-                <div className="rounded-lg border border-border py-2 text-center text-xs">Outline</div>
-              </div>
-            </div>
-          </TabsContent>
+              </TabsList>
 
-          {/* Issues */}
-          <TabsContent value="issues" className="mt-6">
-            <div className="glass rounded-2xl divide-y divide-border/40">
-              {issues.map((i, idx) => (
-                <div key={idx} className="p-5 flex items-start gap-4">
-                  <SeverityIcon sev={i.sev} />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{i.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1">Suggested fix: {i.fix}</div>
+              {/* Overview */}
+              <TabsContent value="overview" className="mt-8 grid lg:grid-cols-3 gap-px bg-border border border-border">
+                <div className="lg:col-span-2 p-6 bg-card">
+                  <p className="eyebrow">Summary</p>
+                  <p className="font-display text-xl mt-2 leading-snug max-w-2xl">
+                    Generated 7 routes and 28 reusable components with a 94% visual match. Production readiness is medium pending one high-severity issue.
+                  </p>
+                  <div className="mt-6 grid sm:grid-cols-3 gap-px bg-border">
+                    {[
+                      { k: "Tokens extracted", v: "42" },
+                      { k: "Total LOC", v: "3,184" },
+                      { k: "Bundle size", v: "112 KB" },
+                    ].map((b) => (
+                      <div key={b.k} className="p-4 bg-card">
+                        <div className="eyebrow">{b.k}</div>
+                        <div className="font-display text-2xl font-bold mt-1">{b.v}</div>
+                      </div>
+                    ))}
                   </div>
-                  <SeverityBadge sev={i.sev} />
-                  <Button size="sm" variant="outline">Apply fix</Button>
                 </div>
-              ))}
-            </div>
-          </TabsContent>
+                <div className="p-6 bg-card">
+                  <p className="eyebrow">Next steps</p>
+                  <ul className="mt-3 space-y-3 text-sm">
+                    {["Review 5 detected issues", "Customize brand tokens", "Push to GitHub or export", "Deploy a preview URL"].map((s) => (
+                      <li key={s} className="flex gap-2 items-start">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 text-foreground" strokeWidth={1.5} /> {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </TabsContent>
 
-          {/* Code Export */}
-          <TabsContent value="code" className="mt-6 grid lg:grid-cols-3 gap-4">
-            <div className="glass rounded-2xl p-5 lg:col-span-1">
-              <div className="text-sm font-medium mb-3 flex items-center gap-2"><FolderOpen className="w-4 h-4" /> File tree</div>
-              <div className="font-mono text-sm space-y-1">
-                {tree.map((folder) => (
-                  <div key={folder.name}>
-                    <div className="text-foreground">▸ /{folder.name}</div>
-                    <div className="pl-5 space-y-1 text-muted-foreground">
-                      {folder.children.map((c) => (
-                        <div key={c} className="flex items-center gap-2"><FileCode2 className="w-3 h-3" /> {c}</div>
-                      ))}
-                    </div>
+              {/* Pages */}
+              <TabsContent value="pages" className="mt-8">
+                <div className="border border-border">
+                  <div className="grid grid-cols-12 eyebrow px-5 py-3 border-b border-border bg-secondary/40">
+                    <div className="col-span-5">Route</div>
+                    <div className="col-span-3">Title</div>
+                    <div className="col-span-2">Status</div>
+                    <div className="col-span-2 text-right">Accuracy</div>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-5 lg:col-span-2 flex flex-col">
-              <div className="text-sm font-medium mb-3">Export options</div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <ExportCard icon={Download} title="Export ZIP" desc="Download the full project as a portable archive." />
-                <ExportCard icon={Github} title="Push to GitHub" desc="Create a new repo or push to an existing branch." />
-                <ExportCard icon={ExternalLink} title="Open in Editor" desc="Launch the in-browser editor with hot reload." />
-                <ExportCard icon={Rocket} title="Deploy Preview" desc="One-click preview deploy to a shareable URL." />
-              </div>
-              <div className="mt-4 rounded-xl border border-border/60 bg-background/60 p-4 font-mono text-xs text-muted-foreground">
-                <span className="text-success">$</span> clonecraft export --project={projectName.toLowerCase().replace(/\s+/g, "-")} --format=zip
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+                  {pages.map((p) => (
+                    <div key={p.path} className="grid grid-cols-12 px-5 py-4 border-b border-border last:border-0 hover:bg-secondary/40 items-center">
+                      <div className="col-span-5 font-mono text-sm">{p.path}</div>
+                      <div className="col-span-3 text-sm">{p.title}</div>
+                      <div className="col-span-2"><StatusBadge status={p.status} /></div>
+                      <div className="col-span-2 text-right font-mono text-sm">{p.acc}%</div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Components */}
+              <TabsContent value="components" className="mt-8">
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-border border border-border">
+                  {components.map((c) => (
+                    <div key={c.name} className="p-4 bg-card hover:bg-secondary/40 transition-colors group">
+                      <div className="aspect-video bg-secondary/60 border border-border mb-3 relative flex items-center justify-center">
+                        <span className="font-mono text-[11px] text-muted-foreground">{c.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">{c.name}</div>
+                        <span className="text-[10px] font-mono text-muted-foreground">×{c.count}</span>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">conf {Math.round(c.conf * 100)}%</div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Design system */}
+              <TabsContent value="design" className="mt-8 grid lg:grid-cols-2 gap-px bg-border border border-border">
+                <div className="p-6 bg-card">
+                  <p className="eyebrow">Colors</p>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    {colors.map((c) => (
+                      <div key={c.name} className="border border-border">
+                        <div className="aspect-video" style={{ background: c.val }} />
+                        <div className="p-2">
+                          <div className="text-xs font-medium">{c.name}</div>
+                          <div className="text-[10px] font-mono text-muted-foreground">{c.val}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-6 bg-card">
+                  <p className="eyebrow">Typography</p>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      { label: "Display / 56", cls: "font-display text-5xl font-bold tracking-tight" },
+                      { label: "Heading / 32", cls: "font-display text-3xl font-bold" },
+                      { label: "Body / 16", cls: "text-base font-light" },
+                      { label: "Mono / 13", cls: "text-[13px] font-mono" },
+                    ].map((t) => (
+                      <div key={t.label} className="flex items-baseline justify-between border-b border-border pb-3 last:border-0 gap-4">
+                        <span className={cn("truncate", t.cls)}>The quick brown fox</span>
+                        <span className="eyebrow shrink-0">{t.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-6 bg-card">
+                  <p className="eyebrow">Spacing scale</p>
+                  <div className="mt-4 space-y-2">
+                    {[4, 8, 12, 16, 24, 32, 48, 64].map((s) => (
+                      <div key={s} className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
+                        <div className="bg-foreground h-2" style={{ width: s * 2 }} />
+                        {s}px
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-6 bg-card">
+                  <p className="eyebrow">Buttons</p>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="bg-foreground text-background py-2 text-center text-xs uppercase tracking-widest font-bold">Primary</div>
+                    <div className="bg-secondary py-2 text-center text-xs uppercase tracking-widest font-bold">Secondary</div>
+                    <div className="border border-foreground py-2 text-center text-xs uppercase tracking-widest font-bold">Outline</div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Issues */}
+              <TabsContent value="issues" className="mt-8">
+                <div className="border border-border">
+                  {issues.map((i, idx) => (
+                    <div key={idx} className="p-5 flex items-start gap-4 border-b border-border last:border-0">
+                      <SeverityIcon sev={i.sev} />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{i.title}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Suggested fix · {i.fix}</div>
+                      </div>
+                      <SeverityBadge sev={i.sev} />
+                      <Button size="sm" variant="outline" className="rounded-none border-foreground hover:bg-foreground hover:text-background">Apply</Button>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Code Export */}
+              <TabsContent value="code" className="mt-8 grid lg:grid-cols-3 gap-px bg-border border border-border">
+                <div className="p-5 bg-card lg:col-span-1">
+                  <p className="eyebrow mb-3 flex items-center gap-2"><FolderOpen className="w-3 h-3" strokeWidth={1.5} /> File tree</p>
+                  <div className="font-mono text-sm space-y-1">
+                    {tree.map((folder) => (
+                      <div key={folder.name}>
+                        <div className="text-foreground">▸ /{folder.name}</div>
+                        <div className="pl-5 space-y-1 text-muted-foreground">
+                          {folder.children.map((c) => (
+                            <div key={c} className="flex items-center gap-2"><FileCode2 className="w-3 h-3" strokeWidth={1.5} /> {c}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-5 bg-card lg:col-span-2 flex flex-col">
+                  <p className="eyebrow mb-3">Export options</p>
+                  <div className="grid sm:grid-cols-2 gap-px bg-border border border-border">
+                    <ExportCard icon={Download} title="Export ZIP" desc="Download the full project as a portable archive." />
+                    <ExportCard icon={Github} title="Push to GitHub" desc="Create a new repo or push to an existing branch." />
+                    <ExportCard icon={ExternalLink} title="Open in Editor" desc="Launch the in-browser editor with hot reload." />
+                    <ExportCard icon={Rocket} title="Deploy Preview" desc="One-click preview deploy to a shareable URL." />
+                  </div>
+                  <div className="mt-4 border border-border bg-background p-4 font-mono text-xs text-muted-foreground">
+                    <span className="text-foreground">$</span> clonecraft export --project={projectName.toLowerCase().replace(/\s+/g, "-")} --format=zip
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Footer rule */}
+          <div className="px-8 md:px-10 py-4 border-t border-foreground flex justify-between items-center eyebrow">
+            <span>Build · CC-7729-AX</span>
+            <span>Editorial Engine · v4.2</span>
+          </div>
+        </div>
       </div>
     </AppShell>
   );
@@ -349,53 +362,59 @@ function projectFromUrl(u: string) {
   }
 }
 
-function MockPreview({ tinted }: { tinted?: boolean }) {
+function MockPreview({ tinted, compact }: { tinted?: boolean; compact?: boolean }) {
   return (
-    <div className="aspect-[16/10] rounded-lg bg-secondary/60 relative overflow-hidden border border-border/60">
-      <div className={cn(
-        "absolute inset-0",
-        tinted
-          ? "bg-[radial-gradient(circle_at_25%_30%,hsl(258_92%_66%/0.45),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(188_95%_55%/0.35),transparent_40%)]"
-          : "bg-[radial-gradient(circle_at_25%_30%,hsl(258_92%_66%/0.35),transparent_40%),radial-gradient(circle_at_75%_70%,hsl(188_95%_55%/0.25),transparent_40%)]"
-      )} />
-      <div className="absolute top-4 left-4 right-4 h-2.5 bg-foreground/10 rounded" />
-      <div className="absolute top-8 left-4 w-1/3 h-2 bg-foreground/10 rounded" />
-      <div className="absolute top-20 left-4 right-4 grid grid-cols-3 gap-3">
-        {[0,1,2].map(i => <div key={i} className="h-20 rounded-md bg-foreground/5 border border-border/60" />)}
+    <div className={cn("bg-white border border-border relative overflow-hidden", compact ? "aspect-[3/4]" : "aspect-video")}>
+      <div className="absolute inset-0 p-6 md:p-8 space-y-4">
+        <div className="h-3 w-1/3 bg-secondary" />
+        <div className={cn("grid gap-3", compact ? "grid-cols-2" : "grid-cols-3")}>
+          {Array.from({ length: compact ? 2 : 3 }).map((_, i) => (
+            <div key={i} className="aspect-square bg-secondary/70" />
+          ))}
+        </div>
+        <div className={cn("w-full bg-secondary/60", compact ? "h-16" : "h-20")} />
+        <div className="h-2 w-2/3 bg-secondary" />
+        <div className="h-2 w-1/2 bg-secondary" />
       </div>
-      <div className="absolute bottom-4 left-4 right-4 h-10 rounded-md bg-foreground/5 border border-border/60" />
+      {tinted && (
+        <div className="absolute bottom-3 right-3 flex gap-1.5">
+          <div className="w-1.5 h-1.5 bg-foreground" />
+          <div className="w-1.5 h-1.5 bg-foreground/20" />
+          <div className="w-1.5 h-1.5 bg-foreground/20" />
+        </div>
+      )}
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    ready: "bg-success/15 text-success border-success/20",
-    review: "bg-warning/15 text-warning border-warning/20",
-    draft: "bg-muted text-muted-foreground border-border",
+    ready: "border-foreground text-foreground",
+    review: "border-foreground/50 text-foreground/70",
+    draft: "border-border text-muted-foreground",
   };
-  return <span className={cn("text-[10px] uppercase font-mono px-2 py-0.5 rounded border", map[status])}>{status}</span>;
+  return <span className={cn("text-[10px] uppercase tracking-[0.2em] font-bold font-mono px-2 py-0.5 border", map[status])}>{status}</span>;
 }
 
 function SeverityIcon({ sev }: { sev: string }) {
-  if (sev === "high") return <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />;
-  if (sev === "med") return <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />;
-  return <AlertTriangle className="w-5 h-5 text-muted-foreground mt-0.5" />;
+  if (sev === "high") return <AlertCircle className="w-5 h-5 text-foreground mt-0.5" strokeWidth={1.5} />;
+  if (sev === "med") return <AlertTriangle className="w-5 h-5 text-foreground/70 mt-0.5" strokeWidth={1.5} />;
+  return <AlertTriangle className="w-5 h-5 text-muted-foreground mt-0.5" strokeWidth={1.5} />;
 }
 function SeverityBadge({ sev }: { sev: string }) {
   const map: Record<string, string> = {
-    high: "bg-destructive/15 text-destructive border-destructive/20",
-    med: "bg-warning/15 text-warning border-warning/20",
-    low: "bg-muted text-muted-foreground border-border",
+    high: "bg-foreground text-background border-foreground",
+    med: "border-foreground text-foreground",
+    low: "border-border text-muted-foreground",
   };
-  return <span className={cn("text-[10px] uppercase font-mono px-2 py-0.5 rounded border self-center", map[sev])}>{sev}</span>;
+  return <span className={cn("text-[10px] uppercase tracking-[0.2em] font-bold font-mono px-2 py-0.5 border self-center", map[sev])}>{sev}</span>;
 }
 
-function ExportCard({ icon: Icon, title, desc }: { icon: React.ComponentType<{className?:string}>; title: string; desc: string }) {
+function ExportCard({ icon: Icon, title, desc }: { icon: React.ComponentType<{className?:string; strokeWidth?: number}>; title: string; desc: string }) {
   return (
-    <button className="text-left p-4 rounded-xl border border-border/60 bg-secondary/30 hover:border-primary/40 hover:bg-secondary/60 transition-smooth">
-      <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow mb-3">
-        <Icon className="w-4 h-4 text-primary-foreground" />
+    <button className="text-left p-4 bg-card hover:bg-secondary/40 transition-colors">
+      <div className="w-9 h-9 bg-foreground text-background flex items-center justify-center mb-3">
+        <Icon className="w-4 h-4" strokeWidth={1.5} />
       </div>
       <div className="text-sm font-medium">{title}</div>
       <div className="text-xs text-muted-foreground mt-1">{desc}</div>
