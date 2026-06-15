@@ -1,0 +1,98 @@
+// Thin client for the CloneCraft API (proxied to the Hono server in dev).
+
+const BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+export type RunConfig = {
+  url: string;
+  depth: "landing" | "top5" | "full";
+  stack: "react" | "next" | "html";
+  goal: "recreate" | "redesign" | "rebrand" | "saas";
+  opts: Record<string, boolean>;
+};
+
+export type DetectedComponent = { name: string; count: number; confidence: number };
+
+export type DesignTokens = {
+  colors: { name: string; value: string }[];
+  fonts: string[];
+  radii?: string[];
+  spacingBase?: string;
+  buttons?: { primary?: Record<string, string>; secondary?: Record<string, string> };
+};
+
+export type RunResult = {
+  title: string;
+  summary: string;
+  routes: string[];
+  tokens: DesignTokens;
+  components: DetectedComponent[];
+  files: { path: string; content: string }[];
+  build: { ran: boolean; passed: boolean; output: string };
+  fixAttempts?: number;
+  screenshotDataUrl?: string;
+  renderedScreenshotDataUrl?: string;
+  previewUrl?: string | null;
+  sandboxId?: string | null;
+};
+
+export type RunStatus = {
+  id: string;
+  url: string;
+  config: RunConfig;
+  status: "queued" | "running" | "succeeded" | "failed";
+  progress: number;
+  stage: string;
+  logs: string[];
+  error: string | null;
+  result: RunResult | null;
+};
+
+export type ProjectSummary = {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+  latestRun: {
+    id: string;
+    status: string;
+    progress: number;
+    accuracy: number | null;
+    pages: number | null;
+    components: number | null;
+  } | null;
+};
+
+async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { "content-type": "application/json" },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export function createRun(config: RunConfig) {
+  return http<{ id: string; projectId: string; status: string }>("/api/runs", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
+}
+
+export function getRun(id: string) {
+  return http<RunStatus>(`/api/runs/${id}`);
+}
+
+/** (Re)launch a live preview sandbox for a finished run. */
+export function relaunchPreview(id: string) {
+  return http<{ previewUrl: string; renderedScreenshotDataUrl?: string }>(
+    `/api/runs/${id}/preview`,
+    { method: "POST" }
+  );
+}
+
+export function listProjects() {
+  return http<ProjectSummary[]>("/api/projects");
+}

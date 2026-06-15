@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +12,12 @@ import {
   Layers,
   Check,
   Github,
-  Boxes,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { BrandLogo } from "@/components/BrandLogo";
+const HeroRemotionPlayer = lazy(() =>
+  import("@/components/HeroRemotionPlayer").then((module) => ({ default: module.HeroRemotionPlayer })),
+);
 
 const features = [
   { icon: Bot, title: "Multi-agent analysis", desc: "Specialized agents handle crawling, vision, DOM extraction, and code generation in parallel." },
@@ -64,14 +68,11 @@ const faqs = [
   { q: "Do you store the original assets?", a: "Assets are stored temporarily in your workspace for editing, encrypted at rest, and auto-purged when a project is deleted." },
 ];
 
-// Real brand marks via Simple Icons CDN, rendered white for the dark theme.
-const logos = [
-  { name: "Vercel", slug: "vercel" },
-  { name: "Linear", slug: "linear" },
-  { name: "Stripe", slug: "stripe" },
-  { name: "Framer", slug: "framer" },
-  { name: "Notion", slug: "notion" },
-  { name: "Figma", slug: "figma" },
+const proofPoints = [
+  "Design audits",
+  "Site migrations",
+  "Prototype rebuilds",
+  "Code exports",
 ];
 
 export default function Landing() {
@@ -81,10 +82,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Boxes className="w-4 h-4 text-primary-foreground" strokeWidth={2} />
-            </div>
-            <span className="font-display font-semibold tracking-tight text-[15px]">CloneCraft</span>
+            <BrandLogo textClassName="text-[15px]" />
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#how" className="hover:text-foreground transition-smooth">How it works</a>
@@ -125,33 +123,30 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Real product image (generated), not a div mock */}
           <div className="relative animate-fade-in">
-            <img
-              src="/hero-clone.jpg"
-              alt="CloneCraft turning a live website into an editable React codebase, side by side"
-              width={1376}
-              height={768}
-              className="w-full rounded-xl border border-border/70 shadow-soft"
-              loading="eager"
-            />
+            <Suspense
+              fallback={
+                <img
+                  src="/hero-clone.jpg"
+                  alt="CloneCraft turning a live website into an editable React codebase, side by side"
+                  width={1376}
+                  height={768}
+                  className="w-full rounded-xl border border-border/70 shadow-soft"
+                />
+              }
+            >
+              <HeroRemotionPlayer />
+            </Suspense>
           </div>
         </div>
       </section>
 
-      {/* Logo wall (under the hero, real marks, logo-only) */}
       <section className="container py-14">
-        <div className="text-center text-sm text-muted-foreground">Trusted by teams at</div>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
-          {logos.map((l) => (
-            <img
-              key={l.slug}
-              src={`https://cdn.simpleicons.org/${l.slug}/ffffff`}
-              alt={l.name}
-              height={22}
-              className="h-[22px] w-auto opacity-55 hover:opacity-90 transition-smooth"
-              loading="lazy"
-            />
+        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/60 bg-border/50 md:grid-cols-4">
+          {proofPoints.map((item) => (
+            <div key={item} className="bg-card/70 px-4 py-4 text-center text-sm font-medium text-muted-foreground">
+              {item}
+            </div>
           ))}
         </div>
       </section>
@@ -279,9 +274,7 @@ export default function Landing() {
       <footer className="border-t border-border/60 py-10">
         <div className="container flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-gradient-primary flex items-center justify-center">
-              <Boxes className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={2} />
-            </div>
+            <BrandLogo markClassName="h-6 w-6 rounded-md" showWordmark={false} />
             <span>© {new Date().getFullYear()} CloneCraft. Built for sites you own.</span>
           </div>
           <div className="flex items-center gap-6">

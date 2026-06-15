@@ -37,12 +37,12 @@ export default function Benchmarks() {
         </div>
 
         <div className="mt-6 glass rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-6 text-[11px] uppercase tracking-wider text-muted-foreground px-5 py-3 border-b border-border/60">
+          <div className="grid grid-cols-6 text-[11px] uppercase tracking-wider text-muted-foreground px-5 py-3">
             <div className="col-span-2">Site</div>
             <div>Visual</div><div>A11y</div><div>Build</div><div className="text-right">Runs</div>
           </div>
           {rows.map(r => (
-            <div key={r.site} className="grid grid-cols-6 px-5 py-3 border-b border-border/40 last:border-0 text-sm items-center">
+            <div key={r.site} className="grid grid-cols-6 px-5 py-3 odd:bg-secondary/20 text-sm items-center">
               <div className="col-span-2 font-mono">{r.site}</div>
               <div className="font-mono">{r.visual}%</div>
               <div className="font-mono">{r.a11y}%</div>

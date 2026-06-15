@@ -35,7 +35,7 @@ export default function Settings() {
             { k: "Watermark preview deploys", on: true },
             { k: "Block flagged domains", on: true },
           ].map(s => (
-            <div key={s.k} className="flex items-center justify-between border-b border-border/40 pb-3 last:border-0">
+            <div key={s.k} className="flex items-center justify-between py-1">
               <div className="text-sm">{s.k}</div>
               <Switch defaultChecked={s.on} />
             </div>

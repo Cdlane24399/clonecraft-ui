@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Plus, Wand2, Info } from "lucide-react";
+import { Globe, Plus, Wand2, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createRun, type RunConfig } from "@/lib/api";
+import { toast } from "sonner";
 
 const depths = [
   { id: "landing", label: "Landing page", desc: "Single URL only" },
@@ -41,10 +43,24 @@ export default function NewClone() {
   const [opts, setOpts] = useState<Record<string, boolean>>({
     responsive: true, animations: true, a11y: true, seo: false, backend: false,
   });
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleGenerate = () => {
-    sessionStorage.setItem("cc:lastUrl", url);
-    nav("/app/progress");
+  const handleGenerate = async () => {
+    setSubmitting(true);
+    try {
+      const config: RunConfig = {
+        url,
+        depth: depth as RunConfig["depth"],
+        stack: stack as RunConfig["stack"],
+        goal: goal as RunConfig["goal"],
+        opts,
+      };
+      const { id } = await createRun(config);
+      nav(`/app/progress?id=${id}`);
+    } catch (e) {
+      toast.error((e as Error).message || "Could not start the run");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -124,8 +140,9 @@ export default function NewClone() {
               <p className="text-xs text-muted-foreground max-w-md">
                 Use for redesigns, migrations, internal prototypes, and owned websites. Submitting a URL confirms you have permission to analyze it.
               </p>
-              <Button onClick={handleGenerate} size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow h-12 px-6">
-                <Wand2 className="w-4 h-4 mr-2" /> Generate clone
+              <Button onClick={handleGenerate} disabled={submitting} size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow h-12 px-6">
+                {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                {submitting ? "Starting…" : "Generate clone"}
               </Button>
             </div>
           </div>
