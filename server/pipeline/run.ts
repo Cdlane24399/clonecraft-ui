@@ -8,6 +8,7 @@ import { capturePage, screenshotUrl, type CaptureResult } from "../lib/browser";
 import { captureWithFirecrawl, brandingBrief, firecrawlAvailable, type Branding } from "../lib/firecrawl";
 import { analyzeWithVision, generateCode, fixCode } from "../lib/ai";
 import { PreviewSession } from "../lib/sandbox";
+import { runCodegenAgent, codegenAgentAvailable } from "../lib/codegenAgent";
 import type { BuildReport } from "../db/schema";
 
 const analysisSchema = z.object({
@@ -196,56 +197,86 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     if (files.length === 0) files = [{ path: "src/App.tsx", content: codeMd }];
     await pushLog(runId, `[codegen] Wrote ${files.length} file(s): ${files.map((f) => f.path).join(", ")}`);
 
-    // 4. Build + serve in e2b, with auto-fix passes -----------------------
-    // One sandbox is reused across all build attempts: deps install once, then
-    // each pass only rewrites the source and re-bundles (seconds, not minutes).
+    // 4. Build + serve, with auto-fix passes ------------------------------
+    // Preferred path: delegate the build→fix→preview loop to the standalone eve
+    // codegen agent (durable, model-driven, unbounded fix passes). Fallback:
+    // the in-process loop below. Either way one sandbox is reused across build
+    // attempts, so deps install once and each pass only re-bundles.
     await emit(runId, 64, "Building & live preview", `[build] Spinning up sandbox + installing toolchain`);
     let build: BuildReport = { ran: false, passed: false, output: "E2B_API_KEY not set — build & preview skipped." };
     let previewUrl: string | null = null;
     let sandboxId: string | null = null;
     let fixAttempts = 0;
+    let usedAgent = false;
 
-    let session: PreviewSession | null = null;
-    try {
-      session = await PreviewSession.open();
-    } catch (e) {
-      build = { ran: true, passed: false, output: (e as Error).message };
-      await pushLog(runId, `[build] ${build.output}`);
+    if (codegenAgentAvailable) {
+      await emit(runId, 66, "Building & live preview", `[agent] Delegating build→fix→preview to codegen agent`);
+      const agentResult = await runCodegenAgent({
+        files,
+        stack: config.stack,
+        maxFixAttempts: MAX_FIX_ATTEMPTS,
+        onLog: (line) => void pushLog(runId, line),
+      });
+      if (agentResult) {
+        usedAgent = true;
+        if (agentResult.files?.length) files = agentResult.files;
+        build = agentResult.build;
+        previewUrl = agentResult.previewUrl;
+        sandboxId = agentResult.sandboxId;
+        fixAttempts = agentResult.fixAttempts ?? 0;
+        await pushLog(
+          runId,
+          `[agent] ${build.passed ? "Bundle OK" : "Build failed"} after ${fixAttempts} fix pass(es)` +
+            (previewUrl ? ` · preview live at ${previewUrl}` : "")
+        );
+      } else {
+        await pushLog(runId, `[agent] Unavailable or errored — falling back to in-process build`);
+      }
     }
 
-    if (session) {
+    if (!usedAgent) {
+      let session: PreviewSession | null = null;
       try {
-        await emit(runId, 68, "Building & live preview", `[build] Bundling with esbuild`);
-        build = await session.build(files);
-        if (!build.passed) {
-          await pushLog(runId, `[build] Failed:\n${build.output.slice(0, 600)}`);
-        }
-        while (!build.passed && fixAttempts < MAX_FIX_ATTEMPTS) {
-          fixAttempts += 1;
-          await emit(
-            runId,
-            70 + fixAttempts * 3,
-            `Building & live preview (fix pass ${fixAttempts})`,
-            `[fix] Build failed — feeding errors back to the model (attempt ${fixAttempts}/${MAX_FIX_ATTEMPTS})`
-          );
-          const fixedMd = await fixCode({ files, errors: build.output, system: CODEGEN_SYSTEM(config.stack) });
-          const fixed = parseGeneratedFiles(fixedMd);
-          if (fixed.length > 0) files = fixed;
-          build = await session.build(files);
-          if (!build.passed) await pushLog(runId, `[fix] Still failing:\n${build.output.slice(0, 400)}`);
-        }
-
-        if (build.passed) {
-          await emit(runId, 84, "Building & live preview", `[build] Serving live preview`);
-          previewUrl = await session.serve();
-          sandboxId = session.sandboxId;
-        } else {
-          await session.close();
-        }
+        session = await PreviewSession.open();
       } catch (e) {
-        build = { ran: true, passed: false, output: `Sandbox error: ${(e as Error).message}` };
-        await session.close();
+        build = { ran: true, passed: false, output: (e as Error).message };
         await pushLog(runId, `[build] ${build.output}`);
+      }
+
+      if (session) {
+        try {
+          await emit(runId, 68, "Building & live preview", `[build] Bundling with esbuild`);
+          build = await session.build(files);
+          if (!build.passed) {
+            await pushLog(runId, `[build] Failed:\n${build.output.slice(0, 600)}`);
+          }
+          while (!build.passed && fixAttempts < MAX_FIX_ATTEMPTS) {
+            fixAttempts += 1;
+            await emit(
+              runId,
+              70 + fixAttempts * 3,
+              `Building & live preview (fix pass ${fixAttempts})`,
+              `[fix] Build failed — feeding errors back to the model (attempt ${fixAttempts}/${MAX_FIX_ATTEMPTS})`
+            );
+            const fixedMd = await fixCode({ files, errors: build.output, system: CODEGEN_SYSTEM(config.stack) });
+            const fixed = parseGeneratedFiles(fixedMd);
+            if (fixed.length > 0) files = fixed;
+            build = await session.build(files);
+            if (!build.passed) await pushLog(runId, `[fix] Still failing:\n${build.output.slice(0, 400)}`);
+          }
+
+          if (build.passed) {
+            await emit(runId, 84, "Building & live preview", `[build] Serving live preview`);
+            previewUrl = await session.serve();
+            sandboxId = session.sandboxId;
+          } else {
+            await session.close();
+          }
+        } catch (e) {
+          build = { ran: true, passed: false, output: `Sandbox error: ${(e as Error).message}` };
+          await session.close();
+          await pushLog(runId, `[build] ${build.output}`);
+        }
       }
     }
 

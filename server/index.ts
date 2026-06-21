@@ -80,6 +80,22 @@ app.use(
 // ── Webhooks verify their own signatures (no Clerk gate) ───────────────
 app.route("/api/webhooks", webhooksRoute);
 
+// ── Ensure local FK target exists before authenticated routes write rows ─
+app.use("/api/*", async (c, next) => {
+  const userId = readUserId(c);
+  if (userId) {
+    try {
+      await db
+        .insert(users)
+        .values({ id: userId })
+        .onConflictDoNothing({ target: users.id });
+    } catch (err) {
+      console.error("users upsert failed:", err);
+    }
+  }
+  await next();
+});
+
 // ── Authed routes ──────────────────────────────────────────────────────
 app.route("/api/me", meRoute);
 app.route("/api/runs", runsRoute);
@@ -88,24 +104,6 @@ app.route("/api/projects", projectsRoute);
 // ── Public abuse endpoint (after Clerk so we can attribute, but
 //    no requireAuth — anonymous reports are allowed).
 app.route("/api/abuse", abuseRoute);
-
-// ── Eager user upsert on first authenticated request of each call ──────
-app.use("/api/*", async (c, next) => {
-  const userId = readUserId(c);
-  if (userId) {
-    void (async () => {
-      try {
-        await db
-          .insert(users)
-          .values({ id: userId })
-          .onConflictDoNothing({ target: users.id });
-      } catch (err) {
-        console.error("users upsert failed:", err);
-      }
-    })();
-  }
-  await next();
-});
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   console.log(`🚀 CloneCraft API on http://localhost:${info.port}`);

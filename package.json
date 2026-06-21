@@ -10,7 +10,9 @@
   "packageManager": "npm@10.9.8",
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"vite\" \"npm:server\"",
+    "dev:all": "concurrently -n web,api,agent -c cyan,magenta,green \"vite\" \"npm:server\" \"npm:dev:agent\"",
     "dev:web": "vite",
+    "dev:agent": "npm --prefix agent-codegen run dev",
     "server": "tsx watch server/index.ts",
     "build": "vite build",
     "build:dev": "vite build --mode development",

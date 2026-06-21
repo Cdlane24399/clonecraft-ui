@@ -30,6 +30,13 @@ const schema = z.object({
   // How long to keep a preview sandbox alive so the user can interact with the clone.
   PREVIEW_TIMEOUT_MS: z.coerce.number().default(15 * 60 * 1000),
 
+  // Standalone eve codegen agent (the agent-codegen package). When set, the
+  // pipeline delegates the generate→build→fix→preview loop to it over HTTP;
+  // when unset, it runs the in-process fallback loop. CODEGEN_AGENT_TOKEN is an
+  // optional bearer for non-loopback (production) deployments.
+  CODEGEN_AGENT_URL: z.string().url().optional(),
+  CODEGEN_AGENT_TOKEN: z.string().optional(),
+
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
