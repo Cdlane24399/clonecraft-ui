@@ -88,8 +88,42 @@ export const consentAcceptance = pgTable(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Abuse reports — submitted via POST /api/abuse (public, may be anonymous).
+// Used for legal review (DMCA, AUP violations) and to seed any future
+// automated takedown logic. We never delete these; PII is minimized to
+// reporter email + a single IP address string.
+// ─────────────────────────────────────────────────────────────────────────────
+export const abuseReports = pgTable("abuse_reports", {
+  id: text("id").primaryKey().$defaultFn(() => createId("abr")),
+  // Null if the reporter wasn't signed in.
+  reporterId: text("reporter_id").references(() => users.id, { onDelete: "set null" }),
+  reporterEmail: text("reporter_email"),
+  category: text("category").$type<AbuseCategory>().notNull(),
+  // The URL or run-id the report refers to. Free-text within length limits.
+  target: text("target").notNull(),
+  details: text("details"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  // Lifecycle: open → triaged → actioned (or dismissed).
+  status: text("status").$type<"open" | "triaged" | "actioned" | "dismissed">()
+    .notNull()
+    .default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+export type AbuseCategory =
+  | "copyright"
+  | "trademark"
+  | "phishing"
+  | "malware"
+  | "harassment"
+  | "illegal-content"
+  | "other";
+
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
 
 export type RunConfig = {

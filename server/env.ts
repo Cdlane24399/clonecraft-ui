@@ -43,6 +43,12 @@ const schema = z.object({
   // Optional: webhook signing secret for /api/webhooks/clerk.
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().optional(),
 
+  // Frontend origin. Used by the server for CSP frame-ancestors, CORS
+  // allowlist, and the abuse-report Reply-To header. Optional so the
+  // server can boot before the frontend is deployed; we fall back to
+  // "http://localhost:5173" (Vite's default) in dev.
+  VITE_APP_URL: z.string().url().default("http://localhost:5173"),
+
   PORT: z.coerce.number().default(8787),
   NODE_ENV: z.string().default("development"),
 });

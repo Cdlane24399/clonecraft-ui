@@ -9,6 +9,7 @@ import { runPipeline } from "../pipeline/run";
 import { buildAndPreview } from "../lib/sandbox";
 import { screenshotUrl } from "../lib/browser";
 import { requireAuth, getUserId } from "../lib/auth";
+import { rateLimit, userOrIpKey } from "../lib/ratelimit";
 
 export const runsRoute = new Hono();
 
@@ -34,8 +35,18 @@ function projectNameFromUrl(url: string): string {
 // separate router so the deploy probe never depends on Clerk being live.)
 runsRoute.use("*", requireAuth());
 
-// POST /api/runs — start a real clone run, scoped to the caller.
-runsRoute.post("/", async (c) => {
+// Per-user rate limit on POST /api/runs. Runs are expensive (Firecrawl +
+// Claude + e2b per attempt); we cap at 10/hour to bound our cost-of-goods
+// and make abuse expensive. 429 returns Retry-After + X-RateLimit-*.
+runsRoute.post(
+  "/",
+  rateLimit({
+    bucket: "runs-create",
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10,
+    keyFn: userOrIpKey,
+  }),
+  async (c) => {
   const userId = getUserId(c);
   const body = await c.req.json().catch(() => ({}));
   const parsed = createSchema.safeParse(body);
