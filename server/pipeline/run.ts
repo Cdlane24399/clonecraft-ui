@@ -13,13 +13,14 @@ import type {
 import { setLive, pushLog } from "../lib/redis";
 import { capturePage, screenshotUrl, type CaptureResult } from "../lib/browser";
 import { captureWithFirecrawl, brandingBrief, firecrawlAvailable, type Branding } from "../lib/firecrawl";
-import { analyzeWithVision, generateCode, fixCode } from "../lib/ai";
+import { analyzeWithVision, generateCode, fixCode, continueGeneration } from "../lib/ai";
 import { extractDesignData, buildDesignSpec } from "../lib/extract";
 import { computePixelDiff, fidelityScore } from "../lib/visualDiff";
 import { runFidelityLoop } from "../lib/fidelity";
-import { parseGeneratedFiles } from "../lib/codegenFiles";
+import { parseGeneratedFiles, isLikelyTruncated } from "../lib/codegenFiles";
 import { PreviewSession } from "../lib/sandbox";
 import { runCodegenAgent, codegenAgentAvailable } from "../lib/codegenAgent";
+import { CODEGEN_SYSTEM, STACK_LABEL, buildCodegenPrompt } from "../lib/codegenPrompt";
 import type { BuildReport } from "../db/schema";
 
 const analysisSchema = z.object({
@@ -82,42 +83,6 @@ function mergeTokens(analysis: AnalysisOut, branding?: Branding): DesignTokens {
   return tokens;
 }
 
-const STACK_LABEL: Record<RunConfig["stack"], string> = {
-  react: "React + Tailwind CSS",
-  next: "Next.js (App Router) + Tailwind CSS",
-  html: "static HTML + CSS",
-};
-
-const GOAL_LABEL: Record<RunConfig["goal"], string> = {
-  recreate: "Recreate the page as a high-fidelity match.",
-  redesign: "Recreate the structure but modernize the visual layer.",
-  rebrand: "Recreate the layout but swap palette, typography, and logo for a fresh brand.",
-  saas: "Recreate the marketing page and add an authenticated dashboard shell.",
-};
-
-const CODEGEN_SYSTEM = (stack: RunConfig["stack"]) =>
-  `You are an expert frontend engineer. You recreate web pages as clean, production-quality ` +
-  `${STACK_LABEL[stack]} code. Output ONLY fenced code blocks, each tagged with its path ` +
-  "like ```tsx file=src/App.tsx. The top-level component MUST be `export default` in src/App.tsx. " +
-  "Make components self-contained and import siblings with relative paths. " +
-  "Use Tailwind utility classes for all styling (a Tailwind runtime is present). " +
-  "When a measured design system is provided (exact hex colors, a type scale in px, " +
-  "spacing values, button styles, and the page's section order), treat those values as " +
-  "ground truth read from the real page — match them precisely (use arbitrary Tailwind " +
-  "values like text-[17px], bg-[#0b1120], gap-[28px] when needed) rather than approximating. " +
-  "Reproduce the sections in the given order with the given backgrounds and proportions. " +
-  "Reproduce full-bleed gradient or shader/canvas backgrounds as layered CSS gradients " +
-  "(linear/radial) using the measured gradient colors. If the design spec says the " +
-  "background animates, add a subtle CSS keyframe animation (e.g. slowly drifting " +
-  "background-position, or large blurred radial-gradient blobs that move/pulse on a long " +
-  "ease-in-out loop) — keep it tasteful and performant, no external libraries. CRITICAL: render a decorative " +
-  "background layer with `z-0` (or `z-[0]`) inside a `relative` section and put the content " +
-  "in a sibling with `relative z-10` — NEVER place a background on a negatively z-indexed " +
-  "layer (`-z-10`): it paints behind the page's opaque root background and disappears. " +
-  "Do not import images or external assets; use inline SVG or CSS gradients/solid colors. " +
-  "lucide-react is available for icons, but only generic icons — its brand icons " +
-  "(Github, Twitter, Linkedin, Facebook, etc.) were removed, so render brand marks " +
-  "as inline SVG instead. Do not include explanatory prose outside the code blocks.";
 
 /**
  * The real clone pipeline. Capture (Firecrawl) → extract computed-style design
@@ -246,23 +211,39 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     const passList = Object.entries(config.opts)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    const codeMd = await generateCode({
+    const gen = await generateCode({
       screenshotBase64: capture.screenshotBase64,
       system: CODEGEN_SYSTEM(config.stack),
-      prompt:
-        `Recreate this page as ${STACK_LABEL[config.stack]}. Goal: ${GOAL_LABEL[config.goal]} ` +
-        `Apply these passes where relevant: ${passList.join(", ") || "none"}. ` +
-        (designSpec
-          ? `\n\n${designSpec}\n\n`
-          : `Use this extracted design system — colors: ${tokens.colors
-              .map((c) => `${c.name} ${c.value}`)
-              .join(", ")}; fonts: ${tokens.fonts.join(", ")}. `) +
-        (brief ? `Brand details: ${brief}. ` : "") +
-        `Detected components: ${analysis.components.map((c) => c.name).join(", ")}. ` +
-        `Produce a top-level src/App.tsx (export default) plus a component file per major section` +
-        (designSpec ? `, matching the measured palette, type scale, spacing and section order above as closely as possible. ` : ". ") +
-        `Keep it to real, compiling TSX.`,
+      designSpec,
+      instructions: buildCodegenPrompt({
+        stack: config.stack,
+        goal: config.goal,
+        passList,
+        designSpec: "", // spec is now sent as its own cached part; don't duplicate it
+        tokens,
+        brief,
+        components: analysis.components,
+        pageText: capture.text,
+      }),
     });
+    let codeMd = gen.text;
+
+    // Truncation guardrail (stopgap until chunked codegen lands): a 32k-capped
+    // single pass can cut off mid-file. Rather than silently dropping the
+    // unterminated block, request ONE continuation and stitch it on.
+    if (gen.finishReason === "length" || isLikelyTruncated(codeMd)) {
+      await pushLog(
+        runId,
+        `[codegen] Output looks truncated (finishReason=${gen.finishReason}) — requesting one continuation`
+      );
+      try {
+        const more = await continueGeneration({ system: CODEGEN_SYSTEM(config.stack), previousText: codeMd });
+        codeMd = codeMd + "\n" + more;
+      } catch (e) {
+        await pushLog(runId, `[codegen] Continuation failed (${(e as Error).message}) — using partial output`);
+      }
+    }
+
     let files = parseGeneratedFiles(codeMd);
     if (files.length === 0) files = [{ path: "src/App.tsx", content: codeMd }];
     await pushLog(runId, `[codegen] Wrote ${files.length} file(s): ${files.map((f) => f.path).join(", ")}`);

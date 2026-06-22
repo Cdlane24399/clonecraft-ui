@@ -1,6 +1,49 @@
 import { generateObject, streamText } from "ai";
+import type { ImagePart, TextPart } from "ai";
 import type { z } from "zod";
 import { env } from "../env";
+import { compressForVision } from "./imageCompress";
+
+/** Anthropic ephemeral prompt-cache breakpoint (5-min TTL). */
+export const EPHEMERAL = { anthropic: { cacheControl: { type: "ephemeral" } } } as const;
+
+/** Lightweight usage logger so we can confirm cache reads on passes 2+. */
+function logUsage(label: string, usage: unknown) {
+  // The AI SDK surfaces cache fields under usage (cachedInputTokens) and/or
+  // providerMetadata.anthropic. Log the raw object so the real-clone check can
+  // read cache-creation vs cache-read counts without guessing field names.
+  console.log(`[usage:${label}]`, JSON.stringify(usage));
+}
+
+/**
+ * Build the cached prefix for a codegen/fix message: the (downscaled) image and
+ * the design spec are stable across a run, so they become ephemeral cache
+ * breakpoints; the per-call instructions stay uncached. Spec part is omitted
+ * when empty so we never create a zero-length breakpoint.
+ */
+export function buildCachedUserContent(args: {
+  imageBase64: string;
+  designSpec: string;
+  instructions: string;
+}): Array<ImagePart | TextPart> {
+  const parts: Array<ImagePart | TextPart> = [
+    {
+      type: "image",
+      image: Buffer.from(compressForVision(args.imageBase64), "base64"),
+      providerOptions: EPHEMERAL,
+    },
+  ];
+  if (args.designSpec.trim()) {
+    parts.push({
+      type: "text",
+      text:
+        `Measured design system (ground truth read from the real page — match exactly):\n${args.designSpec}`,
+      providerOptions: EPHEMERAL,
+    });
+  }
+  parts.push({ type: "text", text: args.instructions });
+  return parts;
+}
 
 // All model calls route through the Vercel AI Gateway. Models are plain
 // "provider/model" slugs — the `ai` SDK routes them through the gateway
@@ -23,7 +66,7 @@ export async function analyzeWithVision<T>(args: {
       {
         role: "user",
         content: [
-          { type: "image", image: Buffer.from(args.screenshotBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.screenshotBase64), "base64") },
           { type: "text", text: args.prompt },
         ],
       },
@@ -32,27 +75,53 @@ export async function analyzeWithVision<T>(args: {
   return object;
 }
 
-/** Generate code from a screenshot + prompt. Streams, returns the full text. */
+/** Generate code from a screenshot + prompt. Streams, returns the full text and finish reason. */
 export async function generateCode(args: {
   screenshotBase64: string;
-  prompt: string;
   system: string;
+  designSpec: string;
+  instructions: string;
+}): Promise<{ text: string; finishReason: string }> {
+  const result = streamText({
+    model: MODELS.codegen,
+    maxOutputTokens: 32000,
+    messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
+      { role: "user", content: buildCachedUserContent({ imageBase64: args.screenshotBase64, designSpec: args.designSpec, instructions: args.instructions }) },
+    ],
+  });
+  const text = await result.text;
+  logUsage("codegen", await result.usage);
+  return { text, finishReason: await result.finishReason };
+}
+
+/**
+ * Ask the model to continue a codegen response that was cut off mid-block.
+ * Returns ONLY the continuation text; the caller concatenates it to the
+ * previous output before parsing. Called at most once per run (hard cap).
+ */
+export async function continueGeneration(args: {
+  system: string;
+  previousText: string;
 }): Promise<string> {
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
       {
         role: "user",
-        content: [
-          { type: "image", image: Buffer.from(args.screenshotBase64, "base64") },
-          { type: "text", text: args.prompt },
-        ],
+        content:
+          `Your previous response was cut off. Continue EXACTLY where you stopped — ` +
+          `do not repeat any already-emitted text, do not restart files, and keep using ` +
+          "the same ```tsx file=<path> fenced format. Here is everything you have " +
+          `emitted so far:\n\n${args.previousText}`,
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("codegen-continue", await result.usage);
+  return text;
 }
 
 /**
@@ -76,9 +145,9 @@ export async function judgeVisualDifferences<T>(args: {
         role: "user",
         content: [
           { type: "text", text: "ORIGINAL — the target page the clone must match:" },
-          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.originalBase64), "base64") },
           { type: "text", text: "CLONE — how the generated clone currently renders:" },
-          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.renderedBase64), "base64") },
           { type: "text", text: args.prompt },
         ],
       },
@@ -107,16 +176,20 @@ export async function fixVisualFidelity(args: {
 
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
       {
         role: "user",
         content: [
           { type: "text", text: "TARGET — the original page the clone must match pixel-for-pixel:" },
-          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          {
+            type: "image",
+            image: Buffer.from(compressForVision(args.originalBase64), "base64"),
+            providerOptions: EPHEMERAL,
+          },
           { type: "text", text: "CURRENT — how your clone renders right now (it is not close enough):" },
-          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.renderedBase64), "base64") },
           {
             type: "text",
             text:
@@ -137,7 +210,9 @@ export async function fixVisualFidelity(args: {
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("fidelity-fix", await result.usage);
+  return text;
 }
 
 /**
@@ -155,9 +230,9 @@ export async function fixCode(args: {
 
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
       {
         role: "user",
         content:
@@ -170,5 +245,7 @@ export async function fixCode(args: {
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("build-fix", await result.usage);
+  return text;
 }

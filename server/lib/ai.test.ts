@@ -1,0 +1,38 @@
+// @vitest-environment node
+import { describe, it, expect } from "vitest";
+import { buildCachedUserContent, EPHEMERAL } from "./ai";
+
+const EPH = { anthropic: { cacheControl: { type: "ephemeral" } } };
+
+describe("EPHEMERAL", () => {
+  it("is the Anthropic ephemeral cache-control provider option", () => {
+    expect(EPHEMERAL).toEqual(EPH);
+  });
+});
+
+describe("buildCachedUserContent", () => {
+  it("marks the image and the design spec as cached, instructions uncached", () => {
+    const parts = buildCachedUserContent({
+      imageBase64: "aW1n", // "img"
+      designSpec: "# spec",
+      instructions: "do the thing",
+    });
+    // Order: image, spec, instructions.
+    expect(parts[0].type).toBe("image");
+    expect(parts[0].providerOptions).toEqual(EPH);
+    expect(parts[1]).toMatchObject({ type: "text", text: expect.stringContaining("# spec"), providerOptions: EPH });
+    expect(parts[2]).toMatchObject({ type: "text", text: "do the thing" });
+    expect(parts[2].providerOptions).toBeUndefined();
+  });
+
+  it("omits the spec part entirely when the design spec is empty", () => {
+    const parts = buildCachedUserContent({
+      imageBase64: "aW1n",
+      designSpec: "",
+      instructions: "go",
+    });
+    expect(parts).toHaveLength(2);
+    expect(parts[0].type).toBe("image");
+    expect(parts[1]).toMatchObject({ type: "text", text: "go" });
+  });
+});
