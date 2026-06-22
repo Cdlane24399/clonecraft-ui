@@ -2,11 +2,22 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/client";
 import { runs } from "../db/schema";
-import type { RunConfig, RunResult, GeneratedFile, DesignTokens } from "../db/schema";
+import type {
+  RunConfig,
+  RunResult,
+  GeneratedFile,
+  DesignTokens,
+  ExtractedDesign,
+  FidelityReport,
+} from "../db/schema";
 import { setLive, pushLog } from "../lib/redis";
 import { capturePage, screenshotUrl, type CaptureResult } from "../lib/browser";
 import { captureWithFirecrawl, brandingBrief, firecrawlAvailable, type Branding } from "../lib/firecrawl";
 import { analyzeWithVision, generateCode, fixCode } from "../lib/ai";
+import { extractDesignData, buildDesignSpec } from "../lib/extract";
+import { computePixelDiff, fidelityScore } from "../lib/visualDiff";
+import { runFidelityLoop } from "../lib/fidelity";
+import { parseGeneratedFiles } from "../lib/codegenFiles";
 import { PreviewSession } from "../lib/sandbox";
 import { runCodegenAgent, codegenAgentAvailable } from "../lib/codegenAgent";
 import type { BuildReport } from "../db/schema";
@@ -39,17 +50,6 @@ function pickRoutes(links: string[], depth: RunConfig["depth"]): string[] {
   if (depth === "landing") return ["/"];
   if (depth === "top5") return uniq.slice(0, 5);
   return uniq.slice(0, 50);
-}
-
-/** Parse ```lang file=path fenced blocks from the codegen output. */
-function parseGeneratedFiles(markdown: string): GeneratedFile[] {
-  const files: GeneratedFile[] = [];
-  const re = /```[a-zA-Z0-9]*\s+file=([^\s`]+)\n([\s\S]*?)```/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(markdown)) !== null) {
-    files.push({ path: m[1].trim(), content: m[2].replace(/\s+$/, "") + "\n" });
-  }
-  return files;
 }
 
 /** Merge Firecrawl branding into design tokens, falling back to vision analysis. */
@@ -101,15 +101,22 @@ const CODEGEN_SYSTEM = (stack: RunConfig["stack"]) =>
   "like ```tsx file=src/App.tsx. The top-level component MUST be `export default` in src/App.tsx. " +
   "Make components self-contained and import siblings with relative paths. " +
   "Use Tailwind utility classes for all styling (a Tailwind runtime is present). " +
+  "When a measured design system is provided (exact hex colors, a type scale in px, " +
+  "spacing values, button styles, and the page's section order), treat those values as " +
+  "ground truth read from the real page — match them precisely (use arbitrary Tailwind " +
+  "values like text-[17px], bg-[#0b1120], gap-[28px] when needed) rather than approximating. " +
+  "Reproduce the sections in the given order with the given backgrounds and proportions. " +
   "Do not import images or external assets; use inline SVG or solid colors. " +
   "lucide-react is available for icons, but only generic icons — its brand icons " +
   "(Github, Twitter, Linkedin, Facebook, etc.) were removed, so render brand marks " +
   "as inline SVG instead. Do not include explanatory prose outside the code blocks.";
 
 /**
- * The real clone pipeline. Capture (Firecrawl) → analyze → generate → build &
- * serve in an e2b sandbox → auto-fix build errors → screenshot the running
- * clone. Progress reports to Redis (live) and Postgres (durable).
+ * The real clone pipeline. Capture (Firecrawl) → extract computed-style design
+ * tokens → analyze → generate → build & serve in an e2b sandbox → auto-fix
+ * build errors → screenshot the running clone → refine against the original
+ * with a visual-diff loop. Progress reports to Redis (live) and Postgres
+ * (durable).
  */
 export async function runPipeline(runId: string, url: string, config: RunConfig) {
   try {
@@ -137,6 +144,21 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
           runId,
           `[firecrawl] Captured "${fc.title}" · ${fc.links.length} links · ${branding ? "design system extracted" : "no branding data"}`
         );
+        // Firecrawl's screenshot uses a tall synthetic viewport that inflates
+        // every vh-based size (heroes, min-h-screen sections, sticky headers),
+        // so the model loses the real proportions and the fidelity diff isn't
+        // apples-to-apples with the clone. Re-capture the visual reference with
+        // our normal 1440×900 headless shot — the exact method used for the
+        // clone — so sizing is correct. Best-effort; keep Firecrawl's on failure.
+        try {
+          capture.screenshotBase64 = await screenshotUrl(capture.finalUrl);
+          await pushLog(runId, `[capture] Re-captured original at true 1440×900 viewport for accurate sizing`);
+        } catch (e) {
+          await pushLog(
+            runId,
+            `[capture] True-viewport re-capture failed (${(e as Error).message}) — using Firecrawl screenshot`
+          );
+        }
       } catch (e) {
         await pushLog(runId, `[firecrawl] Failed (${(e as Error).message}) — falling back to Browserless`);
         capture = await capturePage(url);
@@ -174,6 +196,29 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         (branding ? ` · branding enriched` : "")
     );
 
+    // 2b. Extract ground-truth design from the live page's computed styles.
+    // This is the premium signal: real hex/type-scale/spacing/section-order read
+    // from the DOM (not guessed from a screenshot), fed verbatim to codegen.
+    // Best-effort — if it fails we fall back to the vision/branding tokens.
+    let extracted: ExtractedDesign | undefined;
+    let designSpec = "";
+    try {
+      await emit(runId, 46, "Extracting computed styles", `[extract] Reading real computed styles via headless Chromium`);
+      extracted = await extractDesignData(capture.finalUrl);
+      designSpec = buildDesignSpec(extracted);
+      await pushLog(
+        runId,
+        `[extract] ${extracted.palette.length} palette colors · ${extracted.typography.families.length} font families · ` +
+          `type scale ${extracted.typography.sizesPx.join("/") || "n/a"}px · ${extracted.sections.length} sections · ` +
+          `max-width ${extracted.layout.maxContentWidthPx ?? "n/a"}px`
+      );
+    } catch (e) {
+      await pushLog(
+        runId,
+        `[extract] Computed-style extraction failed (${(e as Error).message}) — using vision/branding tokens only`
+      );
+    }
+
     // 3. Generate code ----------------------------------------------------
     await emit(runId, 52, "Generating code", `[codegen] Generating ${STACK_LABEL[config.stack]}`);
     const passList = Object.entries(config.opts)
@@ -185,12 +230,15 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
       prompt:
         `Recreate this page as ${STACK_LABEL[config.stack]}. Goal: ${GOAL_LABEL[config.goal]} ` +
         `Apply these passes where relevant: ${passList.join(", ") || "none"}. ` +
-        `Use this extracted design system — colors: ${tokens.colors
-          .map((c) => `${c.name} ${c.value}`)
-          .join(", ")}; fonts: ${tokens.fonts.join(", ")}. ` +
+        (designSpec
+          ? `\n\n${designSpec}\n\n`
+          : `Use this extracted design system — colors: ${tokens.colors
+              .map((c) => `${c.name} ${c.value}`)
+              .join(", ")}; fonts: ${tokens.fonts.join(", ")}. `) +
         (brief ? `Brand details: ${brief}. ` : "") +
         `Detected components: ${analysis.components.map((c) => c.name).join(", ")}. ` +
-        `Produce a top-level src/App.tsx (export default) plus a component file per major section. ` +
+        `Produce a top-level src/App.tsx (export default) plus a component file per major section` +
+        (designSpec ? `, matching the measured palette, type scale, spacing and section order above as closely as possible. ` : ". ") +
         `Keep it to real, compiling TSX.`,
     });
     let files = parseGeneratedFiles(codeMd);
@@ -208,6 +256,9 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     let sandboxId: string | null = null;
     let fixAttempts = 0;
     let usedAgent = false;
+    // Held at function scope so the visual-fidelity loop can re-bundle into the
+    // same sandbox after the initial build. Only the in-process path sets it.
+    let session: PreviewSession | null = null;
 
     if (codegenAgentAvailable) {
       await emit(runId, 66, "Building & live preview", `[agent] Delegating build→fix→preview to codegen agent`);
@@ -235,7 +286,6 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     }
 
     if (!usedAgent) {
-      let session: PreviewSession | null = null;
       try {
         session = await PreviewSession.open();
       } catch (e) {
@@ -289,29 +339,81 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     );
 
     // 5. Screenshot the running clone -------------------------------------
+    let renderedScreenshotBase64: string | undefined;
     let renderedScreenshotDataUrl: string | undefined;
     if (previewUrl) {
-      await emit(runId, 88, "Rendering clone preview", `[render] Screenshotting the running app`);
+      await emit(runId, 86, "Rendering clone preview", `[render] Screenshotting the running app`);
       try {
-        const shot = await screenshotUrl(previewUrl);
-        renderedScreenshotDataUrl = `data:image/png;base64,${shot}`;
+        renderedScreenshotBase64 = await screenshotUrl(previewUrl);
+        renderedScreenshotDataUrl = `data:image/png;base64,${renderedScreenshotBase64}`;
         await pushLog(runId, `[render] Captured rendered clone`);
       } catch (e) {
         await pushLog(runId, `[render] Could not screenshot preview (${(e as Error).message})`);
       }
     }
 
+    // 5b. Visual-fidelity loop --------------------------------------------
+    // Compare the render against the original and converge. With a live, re-
+    // buildable session we run the full judge→fix→rebuild loop; on the agent
+    // path (no local session) we still record a read-only pixel-fidelity score.
+    let fidelity: FidelityReport | undefined;
+    if (previewUrl && renderedScreenshotBase64 && capture.screenshotBase64) {
+      if (session) {
+        await emit(runId, 88, "Comparing visual accuracy", `[fidelity] Diffing clone against the original`);
+        try {
+          const refined = await runFidelityLoop({
+            session,
+            files,
+            originalScreenshotBase64: capture.screenshotBase64,
+            renderedScreenshotBase64,
+            previewUrl,
+            designSpec,
+            system: CODEGEN_SYSTEM(config.stack),
+            emit: (progress, stage, log) => emit(runId, progress, stage, log),
+            log: (line) => pushLog(runId, line),
+          });
+          fidelity = refined.fidelity;
+          files = refined.files;
+          renderedScreenshotBase64 = refined.renderedScreenshotBase64;
+          renderedScreenshotDataUrl = `data:image/png;base64,${renderedScreenshotBase64}`;
+          await pushLog(
+            runId,
+            `[fidelity] Final score ${fidelity.score}/100 after ${fidelity.passes} refinement pass(es)`
+          );
+        } catch (e) {
+          await pushLog(runId, `[fidelity] Refinement loop errored (${(e as Error).message}) — keeping current clone`);
+        }
+      } else {
+        // No local session to rebuild (agent path): record pixel fidelity only.
+        try {
+          const d = computePixelDiff(capture.screenshotBase64, renderedScreenshotBase64);
+          fidelity = {
+            pixelMismatch: d.mismatch,
+            score: fidelityScore(d.mismatch),
+            differences: [],
+            passes: 0,
+            diffImageDataUrl: d.diffPngBase64 ? `data:image/png;base64,${d.diffPngBase64}` : undefined,
+          };
+          await pushLog(runId, `[fidelity] Pixel match ${fidelity.score}/100 (refinement needs an in-process build)`);
+        } catch (e) {
+          await pushLog(runId, `[fidelity] Could not compute pixel diff (${(e as Error).message})`);
+        }
+      }
+    }
+
     // 6. Persist ----------------------------------------------------------
-    await emit(runId, 96, "Comparing visual accuracy", `[diff] Finalizing result`);
+    await emit(runId, 96, "Finalizing", `[diff] Finalizing result`);
     const result: RunResult = {
       title: capture.title || url,
       summary: analysis.summary,
       routes,
       tokens,
+      extracted,
       components: analysis.components,
       files,
       build,
       fixAttempts,
+      fidelity,
       screenshotDataUrl: `data:image/png;base64,${capture.screenshotBase64}`,
       renderedScreenshotDataUrl,
       previewUrl,

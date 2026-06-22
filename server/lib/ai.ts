@@ -56,6 +56,87 @@ export async function generateCode(args: {
 }
 
 /**
+ * Visual judge. Shows the model the ORIGINAL page and the rendered CLONE side by
+ * side and asks it to enumerate the concrete visual differences, validated
+ * against a Zod schema. This is the perceptual half of the fidelity loop (the
+ * other half is the pixel diff) — it catches what a mismatch percentage can't
+ * describe: "the hero font is too small", "the nav is missing its CTA".
+ */
+export async function judgeVisualDifferences<T>(args: {
+  originalBase64: string;
+  renderedBase64: string;
+  prompt: string;
+  schema: z.ZodType<T>;
+}): Promise<T> {
+  const { object } = await generateObject({
+    model: MODELS.vision,
+    schema: args.schema,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "ORIGINAL — the target page the clone must match:" },
+          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          { type: "text", text: "CLONE — how the generated clone currently renders:" },
+          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          { type: "text", text: args.prompt },
+        ],
+      },
+    ],
+  });
+  return object;
+}
+
+/**
+ * Fidelity repair. Unlike `fixCode` (which fixes *build* errors), this fixes
+ * *visual* gaps: the model sees the original, the current clone render, the
+ * ranked differences, and the measured design system, and returns a corrected,
+ * complete set of files that should render closer to the target.
+ */
+export async function fixVisualFidelity(args: {
+  files: { path: string; content: string }[];
+  differences: string;
+  designSpec: string;
+  system: string;
+  originalBase64: string;
+  renderedBase64: string;
+}): Promise<string> {
+  const filesBlock = args.files
+    .map((f) => "```tsx file=" + f.path + "\n" + f.content + "\n```")
+    .join("\n\n");
+
+  const result = streamText({
+    model: MODELS.codegen,
+    system: args.system,
+    maxOutputTokens: 32000,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "TARGET — the original page the clone must match pixel-for-pixel:" },
+          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          { type: "text", text: "CURRENT — how your clone renders right now (it is not close enough):" },
+          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          {
+            type: "text",
+            text:
+              `Revise the code to close these specific visual gaps, highest severity first:\n${args.differences}\n\n` +
+              (args.designSpec
+                ? `Honor this measured design system exactly (these are real values read from the original's computed styles):\n${args.designSpec}\n\n`
+                : "") +
+              `Return the COMPLETE corrected set of files as fenced code blocks tagged with ` +
+              `their path (e.g. \`\`\`tsx file=src/App.tsx). Keep the project building cleanly. ` +
+              `Do not omit unchanged files and do not add prose.\n\n` +
+              `--- CURRENT FILES ---\n${filesBlock}`,
+          },
+        ],
+      },
+    ],
+  });
+  return await result.text;
+}
+
+/**
  * Repair a failed build. Given the current files and the build error output,
  * the model returns a corrected, complete set of fenced `file=` blocks.
  */

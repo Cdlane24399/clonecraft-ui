@@ -5,7 +5,7 @@ import { env } from "../env";
  * Scroll the full height of the page in steps so lazy-loaded images and CSS
  * background-images render before we screenshot, then return to the top.
  */
-async function autoScroll(page: import("puppeteer-core").Page): Promise<void> {
+export async function autoScroll(page: import("puppeteer-core").Page): Promise<void> {
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
       let total = 0;
@@ -56,7 +56,7 @@ export type CaptureResult = {
   links: string[];
 };
 
-function browserlessEndpoint() {
+export function browserlessEndpoint() {
   const base = env.BROWSERLESS_WS_URL.replace(/\/$/, "");
   return `${base}?token=${env.BROWSERLESS_API_KEY}`;
 }

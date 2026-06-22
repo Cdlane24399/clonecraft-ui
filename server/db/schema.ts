@@ -141,6 +141,63 @@ export type DesignTokens = {
   buttons?: { primary?: Record<string, string>; secondary?: Record<string, string> };
 };
 
+/**
+ * Ground-truth design data extracted from the live page's *computed styles*
+ * (not inferred from a screenshot). Produced by server/lib/extract.ts and fed
+ * verbatim into the codegen prompt so the model matches real values instead of
+ * guessing them from a picture.
+ */
+export type ExtractedDesign = {
+  /** Dominant colors ranked by painted area, tagged with the role they play. */
+  palette: { hex: string; role: "background" | "text" | "border" | "accent" | "surface"; usage: number }[];
+  typography: {
+    /** Font families ranked by painted area, classified by role. */
+    families: { name: string; role: "heading" | "body" | "mono" | "other"; usage: number }[];
+    /** The real type scale (distinct font-sizes in px, ascending). */
+    sizesPx: number[];
+    /** Distinct font-weights actually used. */
+    weights: number[];
+    lineHeights: string[];
+    letterSpacings: string[];
+  };
+  /** Inferred spacing scale (distinct padding/margin/gap values in px, ascending). */
+  spacingScalePx: number[];
+  /** Distinct border-radius values in px, ascending. */
+  radiiPx: number[];
+  /** Distinct box-shadow values, most common first. */
+  shadows: string[];
+  /** Sampled button styles (computed) — bg, color, padding, radius, weight, border. */
+  buttons: Record<string, string>[];
+  layout: { maxContentWidthPx: number | null; sectionCount: number; viewportWidthPx: number };
+  /** Top-level page sections in document order, with their real backgrounds/text. */
+  sections: { tag: string; label: string; heightPx: number; background: string; textColor: string; fontSizesPx: number[] }[];
+  /** Webfont families the page actually loaded (document.fonts). */
+  loadedFonts: string[];
+};
+
+/** A single concrete visual discrepancy the vision judge found between original and clone. */
+export type VisualDifference = {
+  /** Where on the page — e.g. "hero", "navbar", "pricing cards", "footer". */
+  area: string;
+  /** Concrete, actionable description of what's wrong in the clone. */
+  issue: string;
+  severity: "high" | "medium" | "low";
+};
+
+/** Result of comparing the rendered clone against the original screenshot. */
+export type FidelityReport = {
+  /** Fraction of pixels that differ after normalization (0..1). */
+  pixelMismatch: number;
+  /** 0..100 fidelity score (100 = pixel-identical, derived from pixelMismatch). */
+  score: number;
+  /** Ranked visual differences from the vision judge. */
+  differences: VisualDifference[];
+  /** How many fidelity-fix passes were applied to reach this state. */
+  passes: number;
+  /** Diff visualization highlighting changed pixels (data URL). */
+  diffImageDataUrl?: string;
+};
+
 export type DetectedComponent = { name: string; count: number; confidence: number };
 
 export type GeneratedFile = { path: string; content: string };
@@ -156,11 +213,15 @@ export type RunResult = {
   summary: string;
   routes: string[];
   tokens: DesignTokens;
+  /** Ground-truth design data extracted from the live page's computed styles. */
+  extracted?: ExtractedDesign;
   components: DetectedComponent[];
   files: GeneratedFile[];
   build: BuildReport;
   /** How many fix passes were needed to get a clean build. */
   fixAttempts?: number;
+  /** Visual-fidelity comparison of the rendered clone against the original. */
+  fidelity?: FidelityReport;
   /** Screenshot of the original captured page (data URL). */
   screenshotDataUrl?: string;
   /** Screenshot of the generated clone running in the e2b sandbox (data URL). */

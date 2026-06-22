@@ -79,10 +79,11 @@ export async function captureWithFirecrawl(url: string): Promise<FirecrawlCaptur
         "markdown",
         "links",
         "branding",
-        // A tall viewport (not fullPage) captures several screens of background
-        // depth while staying under the vision model's 8000px image limit, which
-        // an unbounded full-page shot of a long landing page blows past.
-        { type: "screenshot", fullPage: false, viewport: { width: 1440, height: 4320 } },
+        // Capture at a real 1440×900 viewport. The pipeline re-shoots the visual
+        // reference with our own normal-viewport headless capture (see run.ts),
+        // so this screenshot is only a fallback — a tall synthetic viewport here
+        // inflated every vh-based size and gave the model the wrong proportions.
+        { type: "screenshot", fullPage: false, viewport: { width: 1440, height: 900 } },
       ],
     }),
   });
