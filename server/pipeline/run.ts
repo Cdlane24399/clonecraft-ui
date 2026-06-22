@@ -214,11 +214,12 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     const codeMd = await generateCode({
       screenshotBase64: capture.screenshotBase64,
       system: CODEGEN_SYSTEM(config.stack),
-      prompt: buildCodegenPrompt({
+      designSpec,
+      instructions: buildCodegenPrompt({
         stack: config.stack,
         goal: config.goal,
         passList,
-        designSpec,
+        designSpec: "", // spec is now sent as its own cached part; don't duplicate it
         tokens,
         brief,
         components: analysis.components,

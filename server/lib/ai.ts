@@ -1,7 +1,49 @@
 import { generateObject, streamText } from "ai";
+import type { ImagePart, TextPart } from "ai";
 import type { z } from "zod";
 import { env } from "../env";
 import { compressForVision } from "./imageCompress";
+
+/** Anthropic ephemeral prompt-cache breakpoint (5-min TTL). */
+export const EPHEMERAL = { anthropic: { cacheControl: { type: "ephemeral" } } } as const;
+
+/** Lightweight usage logger so we can confirm cache reads on passes 2+. */
+function logUsage(label: string, usage: unknown) {
+  // The AI SDK surfaces cache fields under usage (cachedInputTokens) and/or
+  // providerMetadata.anthropic. Log the raw object so the real-clone check can
+  // read cache-creation vs cache-read counts without guessing field names.
+  console.log(`[usage:${label}]`, JSON.stringify(usage));
+}
+
+/**
+ * Build the cached prefix for a codegen/fix message: the (downscaled) image and
+ * the design spec are stable across a run, so they become ephemeral cache
+ * breakpoints; the per-call instructions stay uncached. Spec part is omitted
+ * when empty so we never create a zero-length breakpoint.
+ */
+export function buildCachedUserContent(args: {
+  imageBase64: string;
+  designSpec: string;
+  instructions: string;
+}): Array<ImagePart | TextPart> {
+  const parts: Array<ImagePart | TextPart> = [
+    {
+      type: "image",
+      image: Buffer.from(compressForVision(args.imageBase64), "base64"),
+      providerOptions: EPHEMERAL,
+    },
+  ];
+  if (args.designSpec.trim()) {
+    parts.push({
+      type: "text",
+      text:
+        `Measured design system (ground truth read from the real page — match exactly):\n${args.designSpec}`,
+      providerOptions: EPHEMERAL,
+    });
+  }
+  parts.push({ type: "text", text: args.instructions });
+  return parts;
+}
 
 // All model calls route through the Vercel AI Gateway. Models are plain
 // "provider/model" slugs — the `ai` SDK routes them through the gateway
@@ -36,24 +78,21 @@ export async function analyzeWithVision<T>(args: {
 /** Generate code from a screenshot + prompt. Streams, returns the full text. */
 export async function generateCode(args: {
   screenshotBase64: string;
-  prompt: string;
   system: string;
+  designSpec: string;
+  instructions: string;
 }): Promise<string> {
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", image: Buffer.from(args.screenshotBase64, "base64") },
-          { type: "text", text: args.prompt },
-        ],
-      },
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
+      { role: "user", content: buildCachedUserContent(args) },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("codegen", await result.usage);
+  return text;
 }
 
 /**
@@ -108,14 +147,18 @@ export async function fixVisualFidelity(args: {
 
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
       {
         role: "user",
         content: [
           { type: "text", text: "TARGET — the original page the clone must match pixel-for-pixel:" },
-          { type: "image", image: Buffer.from(compressForVision(args.originalBase64), "base64") },
+          {
+            type: "image",
+            image: Buffer.from(compressForVision(args.originalBase64), "base64"),
+            providerOptions: EPHEMERAL,
+          },
           { type: "text", text: "CURRENT — how your clone renders right now (it is not close enough):" },
           { type: "image", image: Buffer.from(compressForVision(args.renderedBase64), "base64") },
           {
@@ -138,7 +181,9 @@ export async function fixVisualFidelity(args: {
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("fidelity-fix", await result.usage);
+  return text;
 }
 
 /**
@@ -156,9 +201,9 @@ export async function fixCode(args: {
 
   const result = streamText({
     model: MODELS.codegen,
-    system: args.system,
     maxOutputTokens: 32000,
     messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
       {
         role: "user",
         content:
@@ -171,5 +216,7 @@ export async function fixCode(args: {
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("build-fix", await result.usage);
+  return text;
 }
