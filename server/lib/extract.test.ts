@@ -194,6 +194,65 @@ describe("buildDesignSpec", () => {
   });
 });
 
+describe("gradient + shader extraction", () => {
+  const raw: RawStyleData = {
+    colorUsages: [
+      // An all-neutral solid palette — the colorful signal lives only in the gradient.
+      { color: "rgb(250, 250, 250)", prop: "background", area: 1_000_000 },
+      { color: "rgb(3, 3, 3)", prop: "text", area: 300_000 },
+    ],
+    fontUsages: [],
+    fontSizesPx: [],
+    fontWeights: [],
+    lineHeights: [],
+    letterSpacings: [],
+    spacingsPx: [],
+    radiiPx: [],
+    shadows: [],
+    gradients: [
+      // The dominant hero gradient (largest area), with a transparent fade-out stop.
+      {
+        value:
+          "linear-gradient(rgb(90, 120, 255) 0%, rgb(196, 60, 255) 40%, rgba(255, 255, 255, 0) 60%), radial-gradient(rgb(255, 90, 31) 0%, rgb(255, 45, 110) 25%)",
+        area: 800_000,
+      },
+      { value: "linear-gradient(rgb(90, 120, 255) 0%, rgb(196, 60, 255) 40%, rgba(255, 255, 255, 0) 60%), radial-gradient(rgb(255, 90, 31) 0%, rgb(255, 45, 110) 25%)", area: 200_000 },
+      // A small, dull gradient that should rank lower.
+      { value: "linear-gradient(rgb(240, 240, 240) 0%, rgb(220, 220, 220) 100%)", area: 5_000 },
+    ],
+    canvasAreas: [1_200_000, 50_000], // one full-bleed shader canvas + one tiny chart
+    buttons: [],
+    sections: [],
+    layout: { maxContentWidthPx: 1280, sectionCount: 0, viewportWidthPx: 1440 },
+    loadedFonts: [],
+  };
+  const design = aggregateDesignData(raw);
+
+  it("ranks gradients by painted area and parses opaque color stops", () => {
+    expect(design.gradients[0].usage).toBe(1_000_000); // two identical entries summed
+    // Transparent stop is dropped; vivid stops are parsed to hex.
+    expect(design.gradients[0].colors).toEqual(["#5a78ff", "#c43cff", "#ff5a1f", "#ff2d6e"]);
+    expect(design.gradients[0].colors).not.toContain("#ffffff");
+  });
+
+  it("flags only full-bleed canvases as shaders", () => {
+    expect(design.shaderCanvases).toBe(1); // the 1.2M-area canvas, not the 50k one
+  });
+
+  it("promotes vivid gradient colors into the otherwise-neutral palette as accents", () => {
+    const accents = design.palette.filter((p) => p.role === "accent").map((p) => p.hex);
+    expect(accents).toContain("#5a78ff");
+    expect(accents).toContain("#ff2d6e");
+  });
+
+  it("surfaces gradients + shader in the design spec", () => {
+    const spec = buildDesignSpec(design);
+    expect(spec).toContain("Backgrounds");
+    expect(spec).toContain("shader");
+    expect(spec).toContain("#ff5a1f");
+  });
+});
+
 describe("rgb→hex (via aggregateDesignData)", () => {
   it("leaves already-hex / named colors unchanged and clamps channels", () => {
     const raw: RawStyleData = {

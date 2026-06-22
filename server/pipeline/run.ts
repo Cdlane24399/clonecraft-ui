@@ -106,7 +106,12 @@ const CODEGEN_SYSTEM = (stack: RunConfig["stack"]) =>
   "ground truth read from the real page — match them precisely (use arbitrary Tailwind " +
   "values like text-[17px], bg-[#0b1120], gap-[28px] when needed) rather than approximating. " +
   "Reproduce the sections in the given order with the given backgrounds and proportions. " +
-  "Do not import images or external assets; use inline SVG or solid colors. " +
+  "Reproduce full-bleed gradient or shader/canvas backgrounds as layered CSS gradients " +
+  "(linear/radial) using the measured gradient colors. CRITICAL: render a decorative " +
+  "background layer with `z-0` (or `z-[0]`) inside a `relative` section and put the content " +
+  "in a sibling with `relative z-10` — NEVER place a background on a negatively z-indexed " +
+  "layer (`-z-10`): it paints behind the page's opaque root background and disappears. " +
+  "Do not import images or external assets; use inline SVG or CSS gradients/solid colors. " +
   "lucide-react is available for icons, but only generic icons — its brand icons " +
   "(Github, Twitter, Linkedin, Facebook, etc.) were removed, so render brand marks " +
   "as inline SVG instead. Do not include explanatory prose outside the code blocks.";
@@ -210,7 +215,8 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         runId,
         `[extract] ${extracted.palette.length} palette colors · ${extracted.typography.families.length} font families · ` +
           `type scale ${extracted.typography.sizesPx.join("/") || "n/a"}px · ${extracted.sections.length} sections · ` +
-          `max-width ${extracted.layout.maxContentWidthPx ?? "n/a"}px`
+          `max-width ${extracted.layout.maxContentWidthPx ?? "n/a"}px · ${extracted.gradients.length} gradient(s)` +
+          (extracted.shaderCanvases ? ` · ${extracted.shaderCanvases} shader canvas(es)` : "")
       );
     } catch (e) {
       await pushLog(

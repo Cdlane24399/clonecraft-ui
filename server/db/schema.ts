@@ -166,6 +166,19 @@ export type ExtractedDesign = {
   radiiPx: number[];
   /** Distinct box-shadow values, most common first. */
   shadows: string[];
+  /**
+   * Full-bleed background gradients read from computed `background-image`
+   * (linear/radial/conic), dominant first. Computed-style extraction is blind to
+   * solid `background-color` only, so without this the palette comes back
+   * misleadingly neutral on pages whose color lives in gradients/shaders.
+   */
+  gradients: { css: string; colors: string[]; usage: number }[];
+  /**
+   * Count of large `<canvas>` elements detected (likely WebGL/shader
+   * backgrounds). A non-zero value tells codegen to approximate an animated
+   * shader bg with a layered CSS gradient using the palette/gradient colors.
+   */
+  shaderCanvases: number;
   /** Sampled button styles (computed) — bg, color, padding, radius, weight, border. */
   buttons: Record<string, string>[];
   layout: { maxContentWidthPx: number | null; sectionCount: number; viewportWidthPx: number };

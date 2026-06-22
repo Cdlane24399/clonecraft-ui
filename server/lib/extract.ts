@@ -37,6 +37,10 @@ export type RawStyleData = {
   radiiPx: number[];
   /** Non-"none" box-shadow values (raw, repeats kept for frequency ranking). */
   shadows: string[];
+  /** Computed `background-image` gradient values weighted by painted area. */
+  gradients?: { value: string; area: number }[];
+  /** Painted areas of `<canvas>` elements (likely WebGL/shader backgrounds). */
+  canvasAreas?: number[];
   /** Sampled button computed styles. */
   buttons: Record<string, string>[];
   /** Top-level page sections in document order. */
@@ -101,8 +105,11 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
     const spacingsPx: number[] = [];
     const radiiPx: number[] = [];
     const shadows: string[] = [];
+    const gradients: { value: string; area: number }[] = [];
+    const canvasAreas: number[] = [];
 
     const COLOR_CAP = 4000;
+    const GRADIENT_CAP = 400;
     const pushSpace = (v: string) => {
       const n = parseFloat(v);
       if (!Number.isNaN(n) && n > 0) spacingsPx.push(Math.round(n));
@@ -150,6 +157,19 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
 
       // Shadows.
       if (st.boxShadow && st.boxShadow !== "none") shadows.push(st.boxShadow);
+
+      // Background gradients (computed background-image). Solid background-color
+      // is handled above; this captures the *color that lives in gradients*,
+      // which computed-style color reads otherwise miss entirely. url() images
+      // are skipped — we can't reproduce them and only want gradient color.
+      const bgImg = st.backgroundImage;
+      if (gradients.length < GRADIENT_CAP && bgImg && bgImg !== "none" && /gradient/i.test(bgImg)) {
+        gradients.push({ value: bgImg, area });
+      }
+
+      // Canvas elements (likely WebGL/shader backgrounds) — record painted area
+      // so the aggregator can flag full-bleed shader backgrounds.
+      if (tag === "canvas") canvasAreas.push(area);
     }
 
     // ---- buttons (sample) ----------------------------------------------------
@@ -252,6 +272,8 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
       spacingsPx,
       radiiPx,
       shadows,
+      gradients,
+      canvasAreas,
       buttons,
       sections,
       layout: { maxContentWidthPx, sectionCount: sections.length, viewportWidthPx },
@@ -291,6 +313,27 @@ function hexToRgb(hex: string): [number, number, number] | null {
   let h = m[1];
   if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+/**
+ * Pull the *opaque* color stops out of a computed gradient string, as hex.
+ * Skips fully-transparent stops (rgba(...,0)) since those carry no color and are
+ * just the gradient's fade-out. Returns colors in stop order, deduped.
+ */
+function gradientColors(css: string): string[] {
+  const out: string[] = [];
+  const re = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css)) !== null) {
+    const token = m[0];
+    const rgba = token.match(/rgba?\(([^)]+)\)/i);
+    if (rgba) {
+      const parts = rgba[1].split(",").map((p) => p.trim());
+      if (parts.length >= 4 && parseFloat(parts[3]) === 0) continue; // transparent stop
+    }
+    out.push(rgbToHex(token));
+  }
+  return Array.from(new Set(out));
 }
 
 /** A color is "grayscale" when its channels are near-equal (low saturation). */
@@ -386,9 +429,32 @@ export function aggregateDesignData(raw: RawStyleData): ExtractedDesign {
     }
   }
 
+  // Gradients (background-image). Sum area per distinct gradient string, rank,
+  // and keep the dominant few with their parsed color stops. This is the color
+  // that solid-background reads miss, so it's also fed back into the palette.
+  const gradAreaByCss = new Map<string, number>();
+  for (const g of raw.gradients ?? []) gradAreaByCss.set(g.value, (gradAreaByCss.get(g.value) || 0) + g.area);
+  const gradients = Array.from(gradAreaByCss.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([css, area]) => ({ css, colors: gradientColors(css), usage: Math.round(area) }));
+
+  // Large <canvas> elements are almost always WebGL/shader backgrounds. Count
+  // only the sizeable ones (> ~300×300) so tiny chart/sparkline canvases don't
+  // get mistaken for a full-bleed shader.
+  const shaderCanvases = (raw.canvasAreas ?? []).filter((a) => a > 90_000).length;
+
   const paletteEntries = Array.from(paletteArea.values());
   if (accent) paletteEntries.push({ hex: accent.hex, role: "accent", usage: accent.usage });
   if (surface) paletteEntries.push({ hex: surface.hex, role: "surface", usage: surface.usage });
+  // Vivid gradient stops are real page colors — surface them in the palette as
+  // accents so codegen doesn't see an all-neutral palette on a colorful page.
+  for (const g of gradients) {
+    for (const hex of g.colors) {
+      const rgb = hexToRgb(hex);
+      if (rgb && !isGrayscale(rgb)) paletteEntries.push({ hex, role: "accent", usage: g.usage });
+    }
+  }
 
   // Dedupe by hex+role (accent/surface may collide with a base entry) and rank.
   const dedupedPalette = new Map<string, { hex: string; role: Role; usage: number }>();
@@ -493,6 +559,8 @@ export function aggregateDesignData(raw: RawStyleData): ExtractedDesign {
     spacingScalePx,
     radiiPx,
     shadows,
+    gradients,
+    shaderCanvases,
     buttons,
     layout: raw.layout,
     sections,
@@ -527,6 +595,24 @@ export function buildDesignSpec(design: ExtractedDesign): string {
     L("- (none captured)");
   }
   L("");
+
+  // Backgrounds — gradients and shader canvases. Critical signal: a page whose
+  // color lives in a gradient/shader has an otherwise-neutral palette, so call
+  // these out explicitly and tell the model to reproduce them.
+  if (design.gradients.length || design.shaderCanvases) {
+    L("## Backgrounds (reproduce these — the page is NOT flat/neutral)");
+    if (design.shaderCanvases) {
+      L(
+        `- ${design.shaderCanvases} full-bleed <canvas> background(s) detected (likely an animated ` +
+          `WebGL/shader). Approximate it with layered CSS gradients using the colors below.`
+      );
+    }
+    for (const g of design.gradients) {
+      const colors = g.colors.length ? ` [colors: ${g.colors.join(", ")}]` : "";
+      L(`- ${g.css.slice(0, 220)}${colors}`);
+    }
+    L("");
+  }
 
   // Typography.
   L("## Typography (real families + type scale in px)");
