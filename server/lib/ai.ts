@@ -1,6 +1,7 @@
 import { generateObject, streamText } from "ai";
 import type { z } from "zod";
 import { env } from "../env";
+import { compressForVision } from "./imageCompress";
 
 // All model calls route through the Vercel AI Gateway. Models are plain
 // "provider/model" slugs — the `ai` SDK routes them through the gateway
@@ -23,7 +24,7 @@ export async function analyzeWithVision<T>(args: {
       {
         role: "user",
         content: [
-          { type: "image", image: Buffer.from(args.screenshotBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.screenshotBase64), "base64") },
           { type: "text", text: args.prompt },
         ],
       },
@@ -76,9 +77,9 @@ export async function judgeVisualDifferences<T>(args: {
         role: "user",
         content: [
           { type: "text", text: "ORIGINAL — the target page the clone must match:" },
-          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.originalBase64), "base64") },
           { type: "text", text: "CLONE — how the generated clone currently renders:" },
-          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.renderedBase64), "base64") },
           { type: "text", text: args.prompt },
         ],
       },
@@ -114,9 +115,9 @@ export async function fixVisualFidelity(args: {
         role: "user",
         content: [
           { type: "text", text: "TARGET — the original page the clone must match pixel-for-pixel:" },
-          { type: "image", image: Buffer.from(args.originalBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.originalBase64), "base64") },
           { type: "text", text: "CURRENT — how your clone renders right now (it is not close enough):" },
-          { type: "image", image: Buffer.from(args.renderedBase64, "base64") },
+          { type: "image", image: Buffer.from(compressForVision(args.renderedBase64), "base64") },
           {
             type: "text",
             text:
