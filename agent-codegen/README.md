@@ -76,5 +76,11 @@ loop, so the app works with or without this service running.
   (a vision model call) remains in `server/pipeline/run.ts`; this agent owns the
   build/fix/preview loop. Moving initial generation here is a possible follow-up
   (it would need image input on the session message).
+- **Visual-fidelity refinement also stays in the app.** This agent returns its
+  `sandboxId`; the app reconnects to that sandbox
+  (`PreviewSession.reconnect`) and runs the judge→fix→rebuild fidelity loop in
+  place — so enabling the agent does **not** disable refinement. The agent's
+  sandbox layout is identical to the app's (same `APP_ROOT`, port, and
+  `public/bundle.js`), which is what makes the reconnect-and-rebuild work.
 - `lib/types.ts` mirrors `server/db/schema.ts` — keep the two in sync.
 ```

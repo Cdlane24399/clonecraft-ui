@@ -107,7 +107,10 @@ const CODEGEN_SYSTEM = (stack: RunConfig["stack"]) =>
   "values like text-[17px], bg-[#0b1120], gap-[28px] when needed) rather than approximating. " +
   "Reproduce the sections in the given order with the given backgrounds and proportions. " +
   "Reproduce full-bleed gradient or shader/canvas backgrounds as layered CSS gradients " +
-  "(linear/radial) using the measured gradient colors. CRITICAL: render a decorative " +
+  "(linear/radial) using the measured gradient colors. If the design spec says the " +
+  "background animates, add a subtle CSS keyframe animation (e.g. slowly drifting " +
+  "background-position, or large blurred radial-gradient blobs that move/pulse on a long " +
+  "ease-in-out loop) — keep it tasteful and performant, no external libraries. CRITICAL: render a decorative " +
   "background layer with `z-0` (or `z-[0]`) inside a `relative` section and put the content " +
   "in a sibling with `relative z-10` — NEVER place a background on a negatively z-indexed " +
   "layer (`-z-10`): it paints behind the page's opaque root background and disappears. " +
@@ -181,9 +184,20 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     const routes = pickRoutes(capture.links, config.depth);
     await pushLog(runId, `[crawler] Selected ${routes.length} route(s): ${routes.slice(0, 8).join(", ")}`);
 
-    // 2. Analyze (vision) -------------------------------------------------
-    await emit(runId, 38, "Mapping design tokens", `[vision] Analyzing layout + components`);
-    const analysis: AnalysisOut = await analyzeWithVision({
+    // 2 + 2b. Analyze (vision) and extract ground-truth computed styles.
+    // These are independent — both depend only on `capture` — so run them
+    // concurrently. Vision gives a screenshot-level read (summary + components);
+    // extraction is the premium signal: real hex/type-scale/spacing/section-order
+    // read from the DOM (not guessed), fed verbatim to codegen. Extraction is
+    // best-effort: on failure we fall back to the vision/branding tokens.
+    await emit(
+      runId,
+      38,
+      "Mapping design tokens",
+      `[vision] Analyzing layout + components (computed-style extraction in parallel)`
+    );
+
+    const analysisPromise = analyzeWithVision({
       screenshotBase64: capture.screenshotBase64,
       schema: analysisSchema,
       prompt:
@@ -193,6 +207,30 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         `(name, approximate count on the page, and your confidence 0-1). ` +
         `Page text excerpt:\n${capture.text.slice(0, 4000)}`,
     });
+
+    const extractPromise: Promise<{ extracted?: ExtractedDesign; designSpec: string }> = (async () => {
+      try {
+        const ex = await extractDesignData(capture.finalUrl);
+        await pushLog(
+          runId,
+          `[extract] ${ex.palette.length} palette colors · ${ex.typography.families.length} font families · ` +
+            `type scale ${ex.typography.sizesPx.join("/") || "n/a"}px · ${ex.sections.length} sections · ` +
+            `max-width ${ex.layout.maxContentWidthPx ?? "n/a"}px · ${ex.gradients.length} gradient(s)` +
+            (ex.shaderCanvases ? ` · ${ex.shaderCanvases} shader canvas(es)` : "") +
+            (ex.animatedBackground ? ` · animated bg` : "") +
+            (ex.animatedGradientText ? ` · animated gradient text` : "")
+        );
+        return { extracted: ex, designSpec: buildDesignSpec(ex) };
+      } catch (e) {
+        await pushLog(
+          runId,
+          `[extract] Computed-style extraction failed (${(e as Error).message}) — using vision/branding tokens only`
+        );
+        return { extracted: undefined, designSpec: "" };
+      }
+    })();
+
+    const analysis: AnalysisOut = await analysisPromise;
     const tokens = mergeTokens(analysis, branding);
     const brief = brandingBrief(branding);
     await pushLog(
@@ -201,29 +239,7 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         (branding ? ` · branding enriched` : "")
     );
 
-    // 2b. Extract ground-truth design from the live page's computed styles.
-    // This is the premium signal: real hex/type-scale/spacing/section-order read
-    // from the DOM (not guessed from a screenshot), fed verbatim to codegen.
-    // Best-effort — if it fails we fall back to the vision/branding tokens.
-    let extracted: ExtractedDesign | undefined;
-    let designSpec = "";
-    try {
-      await emit(runId, 46, "Extracting computed styles", `[extract] Reading real computed styles via headless Chromium`);
-      extracted = await extractDesignData(capture.finalUrl);
-      designSpec = buildDesignSpec(extracted);
-      await pushLog(
-        runId,
-        `[extract] ${extracted.palette.length} palette colors · ${extracted.typography.families.length} font families · ` +
-          `type scale ${extracted.typography.sizesPx.join("/") || "n/a"}px · ${extracted.sections.length} sections · ` +
-          `max-width ${extracted.layout.maxContentWidthPx ?? "n/a"}px · ${extracted.gradients.length} gradient(s)` +
-          (extracted.shaderCanvases ? ` · ${extracted.shaderCanvases} shader canvas(es)` : "")
-      );
-    } catch (e) {
-      await pushLog(
-        runId,
-        `[extract] Computed-style extraction failed (${(e as Error).message}) — using vision/branding tokens only`
-      );
-    }
+    const { extracted, designSpec } = await extractPromise;
 
     // 3. Generate code ----------------------------------------------------
     await emit(runId, 52, "Generating code", `[codegen] Generating ${STACK_LABEL[config.stack]}`);
@@ -252,10 +268,14 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     await pushLog(runId, `[codegen] Wrote ${files.length} file(s): ${files.map((f) => f.path).join(", ")}`);
 
     // 4. Build + serve, with auto-fix passes ------------------------------
-    // Preferred path: delegate the build→fix→preview loop to the standalone eve
-    // codegen agent (durable, model-driven, unbounded fix passes). Fallback:
-    // the in-process loop below. Either way one sandbox is reused across build
-    // attempts, so deps install once and each pass only re-bundles.
+    // Two ways to get the build→fix→preview loop done:
+    //   • the standalone eve codegen agent (durable, model-driven, unbounded
+    //     fix passes), when CODEGEN_AGENT_URL is configured; or
+    //   • the in-process loop below (bounded MAX_FIX_ATTEMPTS) otherwise.
+    // Either way one sandbox is reused across build attempts (deps install once,
+    // each pass only re-bundles), and either way the visual-fidelity loop runs:
+    // the agent returns its sandbox id, which we reconnect to below so refinement
+    // works on both paths.
     await emit(runId, 64, "Building & live preview", `[build] Spinning up sandbox + installing toolchain`);
     let build: BuildReport = { ran: false, passed: false, output: "E2B_API_KEY not set — build & preview skipped." };
     let previewUrl: string | null = null;
@@ -263,7 +283,8 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     let fixAttempts = 0;
     let usedAgent = false;
     // Held at function scope so the visual-fidelity loop can re-bundle into the
-    // same sandbox after the initial build. Only the in-process path sets it.
+    // same sandbox. Set by the in-process path directly, or by reconnecting to
+    // the agent's sandbox (see below) on the agent path.
     let session: PreviewSession | null = null;
 
     if (codegenAgentAvailable) {
@@ -288,6 +309,21 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         );
       } else {
         await pushLog(runId, `[agent] Unavailable or errored — falling back to in-process build`);
+      }
+    }
+
+    // Reconnect to the agent's sandbox so the visual-fidelity loop can re-bundle
+    // in place (the agent uses the identical sandbox layout). Without this, the
+    // agent path would skip refinement entirely.
+    if (usedAgent && build.passed && previewUrl && sandboxId) {
+      try {
+        session = await PreviewSession.reconnect(sandboxId);
+        if (session) await pushLog(runId, `[agent] Reconnected to sandbox for visual refinement`);
+      } catch (e) {
+        await pushLog(
+          runId,
+          `[agent] Could not reconnect to agent sandbox (${(e as Error).message}) — recording pixel score only`
+        );
       }
     }
 
@@ -359,9 +395,10 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     }
 
     // 5b. Visual-fidelity loop --------------------------------------------
-    // Compare the render against the original and converge. With a live, re-
-    // buildable session we run the full judge→fix→rebuild loop; on the agent
-    // path (no local session) we still record a read-only pixel-fidelity score.
+    // Compare the render against the original and converge. Both paths refine:
+    // the in-process path uses its own session; the agent path uses the one we
+    // reconnected to above. Only if there's no rebuildable session (E2B unset
+    // or reconnect failed) do we fall back to a read-only pixel-fidelity score.
     let fidelity: FidelityReport | undefined;
     if (previewUrl && renderedScreenshotBase64 && capture.screenshotBase64) {
       if (session) {
@@ -390,7 +427,8 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
           await pushLog(runId, `[fidelity] Refinement loop errored (${(e as Error).message}) — keeping current clone`);
         }
       } else {
-        // No local session to rebuild (agent path): record pixel fidelity only.
+        // No rebuildable session (E2B unset or agent-sandbox reconnect failed):
+        // record pixel fidelity only, no refinement.
         try {
           const d = computePixelDiff(capture.screenshotBase64, renderedScreenshotBase64);
           fidelity = {

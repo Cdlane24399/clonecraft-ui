@@ -77,6 +77,20 @@ export class PreviewSession {
     return new PreviewSession(sandbox);
   }
 
+  /**
+   * Reconnect to an already-running sandbox by id (e.g. the one the codegen
+   * agent built in). No install — the agent uses the identical layout (same
+   * APP_ROOT, port, public/bundle.js, deps), so `build()` re-bundles in place
+   * and the live preview picks it up. This is what lets the visual-fidelity
+   * loop run on the agent path, not just the in-process one. Returns null if
+   * E2B is unset.
+   */
+  static async reconnect(sandboxId: string): Promise<PreviewSession | null> {
+    if (!env.E2B_API_KEY) return null;
+    const sandbox = await Sandbox.connect(sandboxId, { apiKey: env.E2B_API_KEY });
+    return new PreviewSession(sandbox);
+  }
+
   get sandboxId(): string {
     return this.sandbox.sandboxId;
   }

@@ -47,7 +47,7 @@ const PASS: BuildReport = { ran: true, passed: true, output: "ok" };
 const FAIL: BuildReport = { ran: true, passed: false, output: "boom" };
 
 // A diff result with the given mismatch (fidelityScore = round((1-mismatch)*100)).
-const diff = (mismatch: number) => ({ mismatch, diffPngBase64: "diff-b64", width: 10, height: 10 });
+const diff = (mismatch: number) => ({ mismatch, diffPngBase64: "diff-b64", width: 10, height: 10, coverage: 1 });
 
 const baseParams = () => ({
   files: [{ path: "src/App.tsx", content: "old\n" }],

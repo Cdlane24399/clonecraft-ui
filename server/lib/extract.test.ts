@@ -253,6 +253,89 @@ describe("gradient + shader extraction", () => {
   });
 });
 
+describe("modern gradient color syntaxes + animated backgrounds", () => {
+  // Minimal raw factory with only the fields these tests need.
+  const baseRaw = (over: Partial<RawStyleData>): RawStyleData => ({
+    colorUsages: [{ color: "rgb(250, 250, 250)", prop: "background", area: 1_000_000 }],
+    fontUsages: [],
+    fontSizesPx: [],
+    fontWeights: [],
+    lineHeights: [],
+    letterSpacings: [],
+    spacingsPx: [],
+    radiiPx: [],
+    shadows: [],
+    buttons: [],
+    sections: [],
+    layout: { maxContentWidthPx: null, sectionCount: 0, viewportWidthPx: 1440 },
+    loadedFonts: [],
+    ...over,
+  });
+
+  it("parses hsl() and color(srgb …) stops to hex", () => {
+    const d = aggregateDesignData(
+      baseRaw({
+        gradients: [
+          { value: "linear-gradient(hsl(0 100% 50%) 0%, hsl(120, 100%, 50%) 100%)", area: 500_000 },
+          { value: "linear-gradient(color(srgb 0 0 1) 0%, color(srgb 1 1 1) 100%)", area: 400_000 },
+        ],
+      })
+    );
+    expect(d.gradients[0].colors).toEqual(["#ff0000", "#00ff00"]);
+    expect(d.gradients[1].colors).toEqual(["#0000ff", "#ffffff"]);
+  });
+
+  it("parses oklch()/oklab() stops (black/white exact, vivid stays a valid hex) and skips transparent", () => {
+    const d = aggregateDesignData(
+      baseRaw({
+        gradients: [
+          {
+            value:
+              "linear-gradient(oklch(0 0 0) 0%, oklch(1 0 0) 50%, oklch(0.628 0.2577 29.23) 75%, oklch(0.7 0.1 200 / 0) 100%)",
+            area: 500_000,
+          },
+        ],
+      })
+    );
+    const colors = d.gradients[0].colors;
+    expect(colors).toContain("#000000"); // oklch black
+    expect(colors).toContain("#ffffff"); // oklch white
+    // The vivid red-ish stop converts to a valid opaque hex that's clearly red.
+    const vivid = colors.find((c) => c !== "#000000" && c !== "#ffffff");
+    expect(vivid).toMatch(/^#[0-9a-f]{6}$/);
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(vivid!.slice(i, i + 2), 16));
+    expect(r).toBeGreaterThan(g);
+    expect(r).toBeGreaterThan(b);
+    // The fully-transparent oklch(... / 0) stop is dropped.
+    expect(colors.length).toBe(3);
+  });
+
+  it("flags an animated background from a full-bleed animated gradient element", () => {
+    const d = aggregateDesignData(baseRaw({ animatedBgAreas: [1_200_000] }));
+    expect(d.animatedBackground).toBe(true);
+  });
+
+  it("treats a shader canvas as animated, and ignores tiny animated elements", () => {
+    expect(aggregateDesignData(baseRaw({ canvasAreas: [1_200_000] })).animatedBackground).toBe(true);
+    expect(aggregateDesignData(baseRaw({ animatedBgAreas: [40_000] })).animatedBackground).toBe(false);
+    expect(aggregateDesignData(baseRaw({})).animatedBackground).toBe(false);
+  });
+
+  it("calls out the animation in the design spec", () => {
+    const d = aggregateDesignData(baseRaw({ animatedBgAreas: [1_200_000] }));
+    expect(buildDesignSpec(d)).toContain("ANIMATES");
+  });
+
+  it("flags animated gradient text from small animated bg-clip:text spans", () => {
+    // Headline spans are small, so this uses a low area threshold.
+    const d = aggregateDesignData(baseRaw({ animatedTextAreas: [31_000, 17_000] }));
+    expect(d.animatedGradientText).toBe(true);
+    expect(buildDesignSpec(d)).toContain("ANIMATED GRADIENT TEXT");
+    // A sub-1k speck does not trip it.
+    expect(aggregateDesignData(baseRaw({ animatedTextAreas: [500] })).animatedGradientText).toBe(false);
+  });
+});
+
 describe("rgb→hex (via aggregateDesignData)", () => {
   it("leaves already-hex / named colors unchanged and clamps channels", () => {
     const raw: RawStyleData = {

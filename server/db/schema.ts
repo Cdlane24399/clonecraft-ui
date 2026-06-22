@@ -179,6 +179,19 @@ export type ExtractedDesign = {
    * shader bg with a layered CSS gradient using the palette/gradient colors.
    */
   shaderCanvases: number;
+  /**
+   * True when a full-bleed background animates — a large element carrying a
+   * gradient/canvas background that also has a CSS animation (or a shader
+   * canvas, which is animated by nature). Tells codegen to reproduce the
+   * background with a CSS keyframe animation rather than a static gradient.
+   */
+  animatedBackground?: boolean;
+  /**
+   * True when a gradient is clipped to animated text (the rainbow hero-headline
+   * "sweep" effect). Tells codegen to reproduce the headline with an animated
+   * `background-clip: text` gradient rather than flat text.
+   */
+  animatedGradientText?: boolean;
   /** Sampled button styles (computed) — bg, color, padding, radius, weight, border. */
   buttons: Record<string, string>[];
   layout: { maxContentWidthPx: number | null; sectionCount: number; viewportWidthPx: number };

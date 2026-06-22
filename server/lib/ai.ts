@@ -121,8 +121,12 @@ export async function fixVisualFidelity(args: {
             type: "text",
             text:
               `Revise the code to close these specific visual gaps, highest severity first:\n${args.differences}\n\n` +
+              `Pay special attention to VERTICAL PROPORTIONS: match each section's height and ` +
+              `padding to the original. A section that is too short or too tall shifts everything ` +
+              `below it out of alignment, which dominates the fidelity comparison — getting the ` +
+              `hero and section heights right matters more than small cosmetic tweaks.\n\n` +
               (args.designSpec
-                ? `Honor this measured design system exactly (these are real values read from the original's computed styles):\n${args.designSpec}\n\n`
+                ? `Honor this measured design system exactly (these are real values read from the original's computed styles — including each section's measured pixel height):\n${args.designSpec}\n\n`
                 : "") +
               `Return the COMPLETE corrected set of files as fenced code blocks tagged with ` +
               `their path (e.g. \`\`\`tsx file=src/App.tsx). Keep the project building cleanly. ` +

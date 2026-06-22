@@ -41,6 +41,19 @@ export type RawStyleData = {
   gradients?: { value: string; area: number }[];
   /** Painted areas of `<canvas>` elements (likely WebGL/shader backgrounds). */
   canvasAreas?: number[];
+  /**
+   * Painted areas of elements whose gradient/canvas background also has a CSS
+   * `animation` — i.e. an animated background. Used to flag pages whose hero
+   * background moves (so codegen reproduces it with a keyframe animation).
+   */
+  animatedBgAreas?: number[];
+  /**
+   * Painted areas of elements that clip a gradient to their text
+   * (`background-clip: text`) AND run a CSS animation — i.e. an animated
+   * gradient-text sweep (a common hero-headline effect). Flagged separately
+   * from `animatedBgAreas` because the visual is text, not a background.
+   */
+  animatedTextAreas?: number[];
   /** Sampled button computed styles. */
   buttons: Record<string, string>[];
   /** Top-level page sections in document order. */
@@ -107,6 +120,8 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
     const shadows: string[] = [];
     const gradients: { value: string; area: number }[] = [];
     const canvasAreas: number[] = [];
+    const animatedBgAreas: number[] = [];
+    const animatedTextAreas: number[] = [];
 
     const COLOR_CAP = 4000;
     const GRADIENT_CAP = 400;
@@ -163,13 +178,27 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
       // which computed-style color reads otherwise miss entirely. url() images
       // are skipped — we can't reproduce them and only want gradient color.
       const bgImg = st.backgroundImage;
-      if (gradients.length < GRADIENT_CAP && bgImg && bgImg !== "none" && /gradient/i.test(bgImg)) {
+      const hasGradient = !!bgImg && bgImg !== "none" && /gradient/i.test(bgImg);
+      if (gradients.length < GRADIENT_CAP && hasGradient) {
         gradients.push({ value: bgImg, area });
       }
 
       // Canvas elements (likely WebGL/shader backgrounds) — record painted area
       // so the aggregator can flag full-bleed shader backgrounds.
       if (tag === "canvas") canvasAreas.push(area);
+
+      // Animated backgrounds: a gradient/canvas element that also runs a CSS
+      // animation (e.g. drifting background-position, pulsing blobs). Record its
+      // area so the aggregator can flag a moving full-bleed background.
+      const animated = !!st.animationName && st.animationName !== "none";
+      if (animated && (hasGradient || tag === "canvas")) animatedBgAreas.push(area);
+
+      // Animated gradient text: a gradient clipped to the element's text
+      // (background-clip: text, often with transparent fill) that also animates
+      // — the rainbow hero-headline "sweep" effect. Check both the standard and
+      // -webkit- clip properties since browsers report it inconsistently.
+      const clip = st.backgroundClip || (st as unknown as { webkitBackgroundClip?: string }).webkitBackgroundClip;
+      if (animated && hasGradient && clip === "text") animatedTextAreas.push(area);
     }
 
     // ---- buttons (sample) ----------------------------------------------------
@@ -274,6 +303,8 @@ export async function collectRawStyles(page: import("puppeteer-core").Page): Pro
       shadows,
       gradients,
       canvasAreas,
+      animatedBgAreas,
+      animatedTextAreas,
       buttons,
       sections,
       layout: { maxContentWidthPx, sectionCount: sections.length, viewportWidthPx },
@@ -315,23 +346,132 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+/** Clamp 0..255 and format an [r,g,b] triple as lowercase #rrggbb. */
+function rgbTripleToHex(r: number, g: number, b: number): string {
+  const to2 = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  return `#${to2(r)}${to2(g)}${to2(b)}`;
+}
+
+/** Linear-light channel (0..1) → gamma-encoded sRGB (0..1). */
+function linearToSrgb(c: number): number {
+  return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
+
+/** OKLab (L,a,b) → sRGB [r,g,b] in 0..255 (Björn Ottosson's matrices). */
+function oklabToRgb(L: number, a: number, b: number): [number, number, number] {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s = s_ ** 3;
+  const lr = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const lb = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+  return [linearToSrgb(lr) * 255, linearToSrgb(lg) * 255, linearToSrgb(lb) * 255];
+}
+
+/** HSL (h deg, s 0..1, l 0..1) → sRGB [r,g,b] in 0..255. */
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) [r, g, b] = [c, x, 0];
+  else if (hp < 2) [r, g, b] = [x, c, 0];
+  else if (hp < 3) [r, g, b] = [0, c, x];
+  else if (hp < 4) [r, g, b] = [0, x, c];
+  else if (hp < 5) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const mm = l - c / 2;
+  return [(r + mm) * 255, (g + mm) * 255, (b + mm) * 255];
+}
+
+/** Parse a number that may carry a unit/%/deg; "%"→ fraction, "none"→ 0. */
+function num(token: string, pctOf = 1): number {
+  const t = token.trim();
+  if (t === "none" || t === "") return 0;
+  const n = parseFloat(t);
+  if (Number.isNaN(n)) return 0;
+  return t.endsWith("%") ? (n / 100) * pctOf : n;
+}
+
+/** Split the inside of a CSS color function into its component tokens. */
+function colorArgs(inside: string): string[] {
+  // Drop any "/ alpha" tail, then split on commas or whitespace.
+  const noAlpha = inside.split("/")[0];
+  return noAlpha.trim().split(/[\s,]+/).filter(Boolean);
+}
+
+/** True if a color token is fully transparent (alpha 0), in any syntax. */
+function isFullyTransparentToken(token: string): boolean {
+  if (/transparent/i.test(token)) return true;
+  const slash = token.match(/\/\s*([0-9.]+%?)\s*\)/); // modern "/ A" alpha
+  if (slash) return num(slash[1]) === 0;
+  const legacy = token.match(/(?:rgba|hsla)\(([^)]+)\)/i); // legacy 4th comma param
+  if (legacy) {
+    const parts = legacy[1].split(",").map((p) => p.trim());
+    if (parts.length >= 4) return parseFloat(parts[3]) === 0;
+  }
+  return false;
+}
+
+/**
+ * Convert any CSS color token to lowercase #rrggbb. Handles hex, rgb()/rgba(),
+ * hsl()/hsla(), oklch(), oklab(), and color(srgb …). Returns null for forms we
+ * can't confidently parse (named colors, color(display-p3 …), etc.) so callers
+ * can skip them rather than emit garbage.
+ */
+function cssColorToHex(token: string): string | null {
+  const t = token.trim();
+  if (/^#[0-9a-f]{3}$|^#[0-9a-f]{6}$/i.test(t)) return rgbToHex(t);
+
+  const fn = t.match(/^([a-z]+)\(([^)]*)\)$/i);
+  if (!fn) return null;
+  const name = fn[1].toLowerCase();
+  const args = colorArgs(fn[2]);
+  if (args.length < 3 && name !== "color") return null;
+
+  if (name === "rgb" || name === "rgba") {
+    return rgbTripleToHex(parseFloat(args[0]), parseFloat(args[1]), parseFloat(args[2]));
+  }
+  if (name === "hsl" || name === "hsla") {
+    return rgbTripleToHex(...hslToRgb(num(args[0]), num(args[1], 1), num(args[2], 1)));
+  }
+  if (name === "oklch") {
+    const L = num(args[0]); // 0..1 (or %)
+    const C = num(args[1]);
+    const H = num(args[2]); // degrees
+    const rad = (H * Math.PI) / 180;
+    return rgbTripleToHex(...oklabToRgb(L, C * Math.cos(rad), C * Math.sin(rad)));
+  }
+  if (name === "oklab") {
+    return rgbTripleToHex(...oklabToRgb(num(args[0]), parseFloat(args[1]), parseFloat(args[2])));
+  }
+  if (name === "color") {
+    // color(srgb r g b) — components are 0..1. Only the srgb space is handled.
+    if (args[0]?.toLowerCase() !== "srgb" || args.length < 4) return null;
+    return rgbTripleToHex(num(args[1]) * 255, num(args[2]) * 255, num(args[3]) * 255);
+  }
+  return null;
+}
+
 /**
  * Pull the *opaque* color stops out of a computed gradient string, as hex.
- * Skips fully-transparent stops (rgba(...,0)) since those carry no color and are
- * just the gradient's fade-out. Returns colors in stop order, deduped.
+ * Skips fully-transparent stops (e.g. rgba(...,0), oklch(... / 0)) since those
+ * carry no color and are just the gradient's fade-out. Handles modern color
+ * syntaxes (oklch/oklab/hsl/color(srgb)), not just rgb/hex. Returns colors in
+ * stop order, deduped.
  */
 function gradientColors(css: string): string[] {
   const out: string[] = [];
-  const re = /rgba?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/g;
+  const re = /(?:rgba?|hsla?|oklch|oklab|color)\([^)]*\)|#[0-9a-fA-F]{3,8}\b/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(css)) !== null) {
     const token = m[0];
-    const rgba = token.match(/rgba?\(([^)]+)\)/i);
-    if (rgba) {
-      const parts = rgba[1].split(",").map((p) => p.trim());
-      if (parts.length >= 4 && parseFloat(parts[3]) === 0) continue; // transparent stop
-    }
-    out.push(rgbToHex(token));
+    if (isFullyTransparentToken(token)) continue;
+    const hex = cssColorToHex(token);
+    if (hex) out.push(hex);
   }
   return Array.from(new Set(out));
 }
@@ -443,6 +583,15 @@ export function aggregateDesignData(raw: RawStyleData): ExtractedDesign {
   // only the sizeable ones (> ~300×300) so tiny chart/sparkline canvases don't
   // get mistaken for a full-bleed shader.
   const shaderCanvases = (raw.canvasAreas ?? []).filter((a) => a > 90_000).length;
+
+  // The background "animates" when a full-bleed gradient/canvas element runs a
+  // CSS animation, or when there's a shader canvas (animated by nature).
+  const animatedBackground =
+    shaderCanvases > 0 || (raw.animatedBgAreas ?? []).some((a) => a > 90_000);
+
+  // Animated gradient text is a small-element effect (headline spans), so it
+  // uses a much lower area threshold than the full-bleed background check.
+  const animatedGradientText = (raw.animatedTextAreas ?? []).some((a) => a > 1_000);
 
   const paletteEntries = Array.from(paletteArea.values());
   if (accent) paletteEntries.push({ hex: accent.hex, role: "accent", usage: accent.usage });
@@ -561,6 +710,8 @@ export function aggregateDesignData(raw: RawStyleData): ExtractedDesign {
     shadows,
     gradients,
     shaderCanvases,
+    animatedBackground,
+    animatedGradientText,
     buttons,
     layout: raw.layout,
     sections,
@@ -599,12 +750,32 @@ export function buildDesignSpec(design: ExtractedDesign): string {
   // Backgrounds — gradients and shader canvases. Critical signal: a page whose
   // color lives in a gradient/shader has an otherwise-neutral palette, so call
   // these out explicitly and tell the model to reproduce them.
-  if (design.gradients.length || design.shaderCanvases) {
+  if (
+    design.gradients.length ||
+    design.shaderCanvases ||
+    design.animatedBackground ||
+    design.animatedGradientText
+  ) {
     L("## Backgrounds (reproduce these — the page is NOT flat/neutral)");
+    if (design.animatedGradientText) {
+      L(
+        `- A headline uses ANIMATED GRADIENT TEXT (a multi-color gradient clipped to the text with ` +
+          `background-clip:text and animated). Reproduce it: put the gradient colors below into a ` +
+          `linear-gradient, clip it to the text (bg-clip-text + text-transparent), and animate the ` +
+          `background-position on a loop.`
+      );
+    }
     if (design.shaderCanvases) {
       L(
         `- ${design.shaderCanvases} full-bleed <canvas> background(s) detected (likely an animated ` +
           `WebGL/shader). Approximate it with layered CSS gradients using the colors below.`
+      );
+    }
+    if (design.animatedBackground) {
+      L(
+        `- The background ANIMATES. Reproduce the motion with a CSS keyframe animation — e.g. ` +
+          `slowly drifting \`background-position\`, or 2-3 large blurred radial-gradient "blobs" ` +
+          `that move/pulse on a long ease-in-out loop — using the gradient colors below.`
       );
     }
     for (const g of design.gradients) {
