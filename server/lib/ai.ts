@@ -119,7 +119,9 @@ export async function continueGeneration(args: {
       },
     ],
   });
-  return await result.text;
+  const text = await result.text;
+  logUsage("codegen-continue", await result.usage);
+  return text;
 }
 
 /**
