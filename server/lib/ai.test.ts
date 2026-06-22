@@ -20,11 +20,8 @@ describe("buildCachedUserContent", () => {
     // Order: image, spec, instructions.
     expect(parts[0].type).toBe("image");
     expect(parts[0].providerOptions).toEqual(EPH);
-    expect(parts[1].type).toBe("text");
-    expect(parts[1].text).toContain("# spec");
-    expect(parts[1].providerOptions).toEqual(EPH);
-    expect(parts[2].type).toBe("text");
-    expect(parts[2].text).toBe("do the thing");
+    expect(parts[1]).toMatchObject({ type: "text", text: expect.stringContaining("# spec"), providerOptions: EPH });
+    expect(parts[2]).toMatchObject({ type: "text", text: "do the thing" });
     expect(parts[2].providerOptions).toBeUndefined();
   });
 
@@ -36,6 +33,6 @@ describe("buildCachedUserContent", () => {
     });
     expect(parts).toHaveLength(2);
     expect(parts[0].type).toBe("image");
-    expect(parts[1].text).toBe("go");
+    expect(parts[1]).toMatchObject({ type: "text", text: "go" });
   });
 });

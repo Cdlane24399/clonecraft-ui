@@ -87,7 +87,7 @@ export async function generateCode(args: {
     maxOutputTokens: 32000,
     messages: [
       { role: "system", content: args.system, providerOptions: EPHEMERAL },
-      { role: "user", content: buildCachedUserContent(args) },
+      { role: "user", content: buildCachedUserContent({ imageBase64: args.screenshotBase64, designSpec: args.designSpec, instructions: args.instructions }) },
     ],
   });
   const text = await result.text;
