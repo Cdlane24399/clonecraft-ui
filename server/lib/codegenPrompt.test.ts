@@ -12,6 +12,11 @@ describe("CODEGEN_SYSTEM", () => {
     // Keeps the existing z-index / gradient guidance.
     expect(sys).toMatch(/z-0|z-\[0\]/);
   });
+
+  it("allows real images through the preview proxy", () => {
+    const sys = CODEGEN_SYSTEM("react");
+    expect(sys).toContain("/proxy-image?url=");
+  });
 });
 
 describe("buildCodegenPrompt", () => {

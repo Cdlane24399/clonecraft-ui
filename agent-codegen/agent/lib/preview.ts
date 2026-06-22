@@ -39,6 +39,41 @@ const el = document.getElementById("root");
 if (el) createRoot(el).render(<App />);
 `;
 
+// A tiny static file server with a /proxy-image?url= endpoint. Replaces
+// `python3 -m http.server` so cloned pages can render real external images
+// (served back with permissive CORS) instead of being forced to inline-SVG.
+// Runs INSIDE the E2B sandbox — no host-side process, sandbox boundary intact.
+const PROXY_SERVER_PY = `import http.server, socketserver, urllib.parse, urllib.request, os
+PORT = ${PREVIEW_PORT}
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+class H(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/proxy-image":
+            qs = urllib.parse.parse_qs(parsed.query)
+            url = (qs.get("url") or [""])[0]
+            if not url.startswith(("http://", "https://")):
+                self.send_error(400, "bad url"); return
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    data = r.read()
+                    ctype = r.headers.get("Content-Type", "image/png")
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self.send_error(502, str(e))
+            return
+        return super().do_GET()
+socketserver.TCPServer.allow_reuse_address = True
+with socketserver.TCPServer(("", PORT), H) as httpd:
+    httpd.serve_forever()
+`;
+
 function entryFile(files: GeneratedFile[]): string {
   const entry = files.find((f) => /src\/(main|index|entry)\.(t|j)sx?$/.test(f.path));
   return entry ? entry.path : "src/main.tsx";
@@ -112,11 +147,12 @@ export class PreviewSession {
     return { ran: true, passed, output: output.slice(0, 8000) };
   }
 
-  /** Serve the built bundle and return its public URL (idempotent per session). */
+  /** Serve the built bundle (with image proxy) and return its public URL (idempotent per session). */
   async serve(): Promise<string> {
     if (this.served && this.previewUrl) return this.previewUrl;
+    await this.sandbox.files.write(`${APP_ROOT}/public/server.py`, PROXY_SERVER_PY);
     await this.sandbox.commands.run(
-      `cd ${APP_ROOT}/public && nohup python3 -m http.server ${PREVIEW_PORT} >/tmp/serve.log 2>&1 &`,
+      `cd ${APP_ROOT}/public && nohup python3 server.py >/tmp/serve.log 2>&1 &`,
       { background: true }
     );
     const previewUrl = `https://${this.sandbox.getHost(PREVIEW_PORT)}`;

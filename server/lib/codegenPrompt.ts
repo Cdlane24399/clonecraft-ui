@@ -46,7 +46,11 @@ export const CODEGEN_SYSTEM = (stack: RunConfig["stack"]) =>
   "background layer with `z-0` (or `z-[0]`) inside a `relative` section and put the content " +
   "in a sibling with `relative z-10` — NEVER place a background on a negatively z-indexed " +
   "layer (`-z-10`): it paints behind the page's opaque root background and disappears. " +
-  "Do not import images or external assets; use inline SVG or CSS gradients/solid colors. " +
+  "For real photographic/hero imagery, use a normal img tag whose src goes through the " +
+  "preview image proxy: <img src=\"/proxy-image?url=ENCODED_ABSOLUTE_URL\" /> where " +
+  "ENCODED_ABSOLUTE_URL is the original image's absolute URL, URL-encoded. Use the " +
+  "real image URLs visible in the page. For brand marks/logos and simple icons, prefer " +
+  "inline SVG or CSS gradients/solid colors. Do not import images as ES modules. " +
   "lucide-react is available for icons, but only generic icons — its brand icons " +
   "(Github, Twitter, Linkedin, Facebook, etc.) were removed, so render brand marks " +
   "as inline SVG instead. Do not include explanatory prose outside the code blocks.";
