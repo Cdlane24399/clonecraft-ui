@@ -75,13 +75,13 @@ export async function analyzeWithVision<T>(args: {
   return object;
 }
 
-/** Generate code from a screenshot + prompt. Streams, returns the full text. */
+/** Generate code from a screenshot + prompt. Streams, returns the full text and finish reason. */
 export async function generateCode(args: {
   screenshotBase64: string;
   system: string;
   designSpec: string;
   instructions: string;
-}): Promise<string> {
+}): Promise<{ text: string; finishReason: string }> {
   const result = streamText({
     model: MODELS.codegen,
     maxOutputTokens: 32000,
@@ -92,7 +92,34 @@ export async function generateCode(args: {
   });
   const text = await result.text;
   logUsage("codegen", await result.usage);
-  return text;
+  return { text, finishReason: await result.finishReason };
+}
+
+/**
+ * Ask the model to continue a codegen response that was cut off mid-block.
+ * Returns ONLY the continuation text; the caller concatenates it to the
+ * previous output before parsing. Called at most once per run (hard cap).
+ */
+export async function continueGeneration(args: {
+  system: string;
+  previousText: string;
+}): Promise<string> {
+  const result = streamText({
+    model: MODELS.codegen,
+    maxOutputTokens: 32000,
+    messages: [
+      { role: "system", content: args.system, providerOptions: EPHEMERAL },
+      {
+        role: "user",
+        content:
+          `Your previous response was cut off. Continue EXACTLY where you stopped — ` +
+          `do not repeat any already-emitted text, do not restart files, and keep using ` +
+          "the same ```tsx file=<path> fenced format. Here is everything you have " +
+          `emitted so far:\n\n${args.previousText}`,
+      },
+    ],
+  });
+  return await result.text;
 }
 
 /**

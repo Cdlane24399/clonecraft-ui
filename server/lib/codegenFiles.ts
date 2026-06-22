@@ -14,3 +14,15 @@ export function parseGeneratedFiles(markdown: string): GeneratedFile[] {
   }
   return files;
 }
+
+/**
+ * Heuristic: did the model's fenced output get cut off mid-block? An even number
+ * of ``` fences means every opened block was closed; an odd count means the last
+ * block is unterminated (the classic 32k-truncation signature). Empty output is
+ * not "truncated" — there's nothing to continue.
+ */
+export function isLikelyTruncated(markdown: string): boolean {
+  if (!markdown.trim()) return false;
+  const fences = markdown.match(/```/g)?.length ?? 0;
+  return fences % 2 === 1;
+}

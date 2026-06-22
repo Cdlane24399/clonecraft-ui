@@ -13,11 +13,11 @@ import type {
 import { setLive, pushLog } from "../lib/redis";
 import { capturePage, screenshotUrl, type CaptureResult } from "../lib/browser";
 import { captureWithFirecrawl, brandingBrief, firecrawlAvailable, type Branding } from "../lib/firecrawl";
-import { analyzeWithVision, generateCode, fixCode } from "../lib/ai";
+import { analyzeWithVision, generateCode, fixCode, continueGeneration } from "../lib/ai";
 import { extractDesignData, buildDesignSpec } from "../lib/extract";
 import { computePixelDiff, fidelityScore } from "../lib/visualDiff";
 import { runFidelityLoop } from "../lib/fidelity";
-import { parseGeneratedFiles } from "../lib/codegenFiles";
+import { parseGeneratedFiles, isLikelyTruncated } from "../lib/codegenFiles";
 import { PreviewSession } from "../lib/sandbox";
 import { runCodegenAgent, codegenAgentAvailable } from "../lib/codegenAgent";
 import { CODEGEN_SYSTEM, STACK_LABEL, buildCodegenPrompt } from "../lib/codegenPrompt";
@@ -211,7 +211,7 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
     const passList = Object.entries(config.opts)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    const codeMd = await generateCode({
+    const gen = await generateCode({
       screenshotBase64: capture.screenshotBase64,
       system: CODEGEN_SYSTEM(config.stack),
       designSpec,
@@ -226,6 +226,24 @@ export async function runPipeline(runId: string, url: string, config: RunConfig)
         pageText: capture.text,
       }),
     });
+    let codeMd = gen.text;
+
+    // Truncation guardrail (stopgap until chunked codegen lands): a 32k-capped
+    // single pass can cut off mid-file. Rather than silently dropping the
+    // unterminated block, request ONE continuation and stitch it on.
+    if (gen.finishReason === "length" || isLikelyTruncated(codeMd)) {
+      await pushLog(
+        runId,
+        `[codegen] Output looks truncated (finishReason=${gen.finishReason}) — requesting one continuation`
+      );
+      try {
+        const more = await continueGeneration({ system: CODEGEN_SYSTEM(config.stack), previousText: codeMd });
+        codeMd = codeMd + "\n" + more;
+      } catch (e) {
+        await pushLog(runId, `[codegen] Continuation failed (${(e as Error).message}) — using partial output`);
+      }
+    }
+
     let files = parseGeneratedFiles(codeMd);
     if (files.length === 0) files = [{ path: "src/App.tsx", content: codeMd }];
     await pushLog(runId, `[codegen] Wrote ${files.length} file(s): ${files.map((f) => f.path).join(", ")}`);
